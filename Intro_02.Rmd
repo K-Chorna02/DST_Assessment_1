@@ -1,0 +1,144 @@
+---
+title: "Intro_report02"
+author: "Minnie"
+date: "2025-10-14"
+output: html_document
+---
+# Introduction
+Throughout this project, we use data relevant to environmental health analysis, focusing on air pollution data from the World Health Organisation.
+The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. 
+These predictions could be used to influence policy making to address these issues. We will walk through how we cleaned and prepared our data, before examining which models we implemented for our predictive .  
+
+# The data 
+Since our data is sourced from the World Health Organisation, we can say with confidence that this data was reliably sourced.
+The link to our data set can be found: 
+https://www.who.int/publications/m/item/who-ambient-air-quality-database-(update-jan-2024)
+Our dataset 'who_data' can be found found in our report folder. 
+
+```{r load}
+# Load the data 
+ # library(here)
+# data=read.csv(here("data", "who_data.csv"), stringsAsFactors = FALSE)
+data=read.csv("who_data.csv")
+```
+We removed irrelevant columns from the original, such as 'data_source' and 'url_links'. We remove these in the processing section. 
+
+To begin with, we get an overview of our data using :
+```{r string}
+str(data)
+```
+
+# About our data
+
+As we can see we have a range of different types of data:
+
+- *Numerical:* Population counts and pollutant concentrations, where:
+
+*pm10_concentration* - Annual mean concentration of particulate matter with diameter of 10 μm or less (µg/m3)
+
+*pm25_concentration* - Annual mean concentration of particulate matter with diameter of 2.5μm or less (µg/m3)
+
+*no2_concentration* - Annual mean concentration of nitrogen dioxide (µg/m3)
+These are something we will focus on throughout our project. 
+
+-*Temporal:* Year 2010-2022. Time is an important variable when exploring long term changes in concentration of pollutants and can help illustrate trends or patterns.
+
+-*Categorical:* Country, city, station type
+
+- *Spatial:* Longitude and latitude coordinates (could be useful in determining whether  parts of the world have a trend in a higher concentration of pollutants.)
+
+For our project we aim to predict the pm10 concentration for a particular country over time, and apply this model to neighbouring countries to determine its effectiveness. 
+
+
+## Processing 
+
+```{r summaries}
+#We deleted the columns that were irrelevant.
+who_data=subset(data,select=-c(X,X.1,X.2,X.3,who_ms))
+summary(who_data)
+```
+
+Since we have decided to focus on predicting pm10 pollution levels by specific countries over time, we want to ensure all of these variables (pm10, country, year) are in the correct format (e.g., numeric or factor).
+Some data should be numeric, but it's not read as numeric by R. So we convert some numeric-like columns stored as character to numeric.
+
+```{r preprocessing}
+#Replace literal "NA" strings with proper R NA 
+who_data_NA = who_data[who_data == "NA"]= NA
+
+#convert numeric-like columns stored as character to numeric
+num_cols= c("pm10_concentration","pm25_concentration","no2_concentration",
+              "pm10_tempcov","pm25_tempcov","no2_tempcov","population")
+who_data[num_cols] =lapply(who_data[num_cols], as.numeric) # set the data as numeric
+
+who_data$type_of_stations =as.character(who_data$type_of_stations)
+who_data$who_region =as.factor(who_data$who_region)
+```
+
+# Missingness
+
+Evidently missing data creates a large variety of issues in predictive models, so we have decided to look at countries that have over 500 data entries and of these, less than 30% of them are NAs for each concentration type. 
+
+```{r NA counts pm10} 
+library(dplyr)
+who_data %>%
+  group_by(country_name) %>%
+  summarise(
+    na_count = sum(is.na(pm10_concentration)),
+    count= n(),
+    proportion=na_count/count) %>%
+  filter(proportion< 0.3 & count>500)
+```
+
+```{r NA counts pm25} 
+library(dplyr)
+who_data %>%
+  group_by(country_name) %>%
+  summarise(
+    na_count = sum(is.na(pm25_concentration)),
+    count= n(),
+    proportion=na_count/count) %>%
+  filter(proportion< 0.3 & count>500)
+```
+
+```{r NA counts no2} 
+library(dplyr)
+who_data %>%
+  group_by(country_name) %>%
+  summarise(
+    na_count = sum(is.na(no2_concentration)),
+    count= n(),
+    proportion=na_count/count) %>%
+  filter(proportion< 0.3 & count>500)
+```
+
+We notice most countries are in Europe, so we filter by only European countries, as we believe our model is more likely to work for countries within the same continent (sharing similar climate properties etc). 
+
+
+## Predictive modelling 
+Before we delve into the different models we used, we still have an issue with the missingness of our data. Although we have identified that European countries are more easily analysed since they have a sufficient amount of their data, some predictive models won't work with any missing data at all. 
+Hence, we have decided to split our challenge into 2 main categories: 
+
+*predictive modelling with missingness* - here we simply carry out our predictive modelling by using techniques that will still function despite an NA count. 
+
+```{r europe clean data} 
+library(dplyr)
+europe_data= who_data %>%
+  filter(who_region=="4_Eur")%>%
+  select(-pm25_concentration)
+```
+
+*predictive modelling by removing NAs* - We remove the missing data all together, evidently this creates an over smoothing issue, but for the purpose of this task we will still be able to illustrate our results clearly. 
+
+```{r data set NAs removed} 
+clean_data_europe= na.omit(europe_data)
+```
+
+Note: we can see how many rows were removed, there is a key difference between how many NA values were removed and how many rows were removed, as some rows may contain multiple missing values. 
+```{r how many rows removed}
+library(dplyr)
+europe_rows=nrow(europe_data)
+rows_removed=europe_rows-nrow(clean_data_europe)
+prop= rows_removed/ europe_rows
+prop
+```
+Hence we have removed 84.7% of our data, so we aknowledge that our models might not be as accurate. 
