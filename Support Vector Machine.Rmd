@@ -1,0 +1,180 @@
+---
+title: "Kateryna Chorna Support Vector Machine"
+author: "Kateryna Chorna"
+date: "2025-10-20"
+output: html_document
+---
+# Minnie code cleaning 
+```{r load_and_preprocess, message=FALSE, warning=FALSE}
+# Load packages
+library(dplyr)
+library(e1071)
+
+# Load the data
+data <- read.csv("who_data.csv")
+
+# Remove irrelevant columns
+who_data <- subset(data, select=-c(X,X.1,X.2,X.3,who_ms))
+
+# Replace literal "NA" strings with proper R NA
+who_data[who_data == "NA"] <- NA
+
+# Convert numeric-like columns stored as character to numeric
+num_cols <- c("pm10_concentration","pm25_concentration","no2_concentration",
+              "pm10_tempcov","pm25_tempcov","no2_tempcov","population")
+who_data[num_cols] <- lapply(who_data[num_cols], as.numeric)
+
+# Convert categorical variables to correct type
+who_data$type_of_stations <- as.character(who_data$type_of_stations)
+who_data$who_region <- as.factor(who_data$who_region)
+
+# Filter for European countries and remove pm25 column
+europe_data <- who_data %>%
+  filter(who_region == "4_Eur") %>%
+  select(-pm25_concentration)
+
+# Remove rows with missing values
+clean_data_europe <- na.omit(europe_data)
+
+# Check how many rows were removed
+europe_rows <- nrow(europe_data)
+rows_removed <- europe_rows - nrow(clean_data_europe)
+prop <- rows_removed / europe_rows
+prop
+
+```
+
+# Support Vector Machine (SVM)
+
+Support Vector Machines are supervised learning models used for both classification and regression problems. They work by finding an optimal boundary, known as a hyperplane, that best separates or predicts data points. The observations that lie closest to this boundary are called *support vectors*, and they are the most influential in defining the model.
+
+## Types of SVM
+
+There are two main types of Support Vector Machines:
+
+-   **Support Vector Classification (SVC):** used when the target variable is categorical (for example, predicting a class label).\
+-   **Support Vector Regression (SVR):** used when the target variable is continuous (for example, predicting a numeric value).
+
+## Model used in this project
+
+Since we aim to predict **PM₁₀ pollutant concentrations**, which are **continuous values**, we use the **Support Vector Regression (SVR)** model.\
+This model finds a smooth function that predicts PM₁₀ levels as accurately as possible, while keeping the function as simple as possible to avoid overfitting. SVR cannot handle missing values directly, so rows containing `NA`s must be removed or imputed before training the model.
+
+## Why we use this method
+
+Support Vector Regression (SVR) has several potential advantages for environmental data analysis:\
+- It can handle nonlinear relationships between variables, which are often present in pollution data.\
+- It is relatively robust to noise and outliers, which may be present in real-world measurements.\
+- It allows the inclusion of multiple explanatory variables (e.g., year, country, population) to improve predictive power.
+
+While these characteristics make SVR a promising method, we will also apply other regression and machine learning models to determine which method is most effective for predicting PM₁₀ concentrations across European countries.
+
+## Library requirements 
+In order to run our code, the following libraries are required:
+```{r}
+
+# Install packages if needed
+if(!require("ggplot2")) install.packages("ggplot2")
+if(!require("dplyr")) install.packages("dplyr")
+if(!require("e1071")) install.packages("e1071")
+if(!require("ggrepel")) install.packages("ggrepel")
+if(!require("kableExtra")) install.packages("kableExtra")
+
+# We load the libraries we will need throughout the project:
+library(ggplot2)
+library(dplyr)
+library(e1071)
+library(ggrepel)
+library(kableExtra)
+
+
+```
+
+
+```{r}
+# Load required package
+library(e1071)
+library(dplyr)
+
+# Make sure country is a factor
+clean_data_europe$country_name <- as.factor(clean_data_europe$country_name)
+
+# Ensure there are no NAs (SVR cannot handle missing values)
+svr_data <- na.omit(clean_data_europe)
+
+# Split data into training (2010-2020) and testing (2021)
+train_data <- filter(svr_data, year <= 2020)
+test_data  <- filter(svr_data, year == 2021)
+
+# Train SVR model
+svr_model <- svm(pm10_concentration ~ year + country_name + population, 
+                 data = train_data, 
+                 type = "eps-regression", 
+                 kernel = "radial")  # radial kernel allows non-linear relationships
+
+# Predict PM10 for 2021
+predictions <- predict(svr_model, newdata = test_data)
+
+# View predictions
+predictions
+
+# If actual PM10 values for 2021 are available, evaluate performance
+if("pm10_concentration" %in% colnames(test_data)) {
+  actuals <- test_data$pm10_concentration
+  rmse <- sqrt(mean((predictions - actuals)^2))
+  rmse
+}
+
+
+```
+
+
+
+
+
+```{r}
+
+
+results_country %>%
+  kable(
+    format = "html",
+    caption = "SVR Predicted vs Actual PM10 by Country (2021)",
+    digits = 2
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  column_spec(1, bold = TRUE) %>%         # make country names bold
+  column_spec(2:4, width = "3cm") %>%    # adjust column widths
+  row_spec(0, background = "#D3D3D3")    # header background color
+
+
+```
+
+
+
+
+```{r}
+ggplot(results_country, aes(x = actual_pm10, y = predicted_pm10, label = country_name)) +
+  geom_point(aes(color = n_points < 10, size = n_points), alpha = 0.7) +
+  geom_text_repel(
+    nudge_y = 0.5,
+    size = 3,
+    segment.color = "grey50",    # line color connecting label to point
+    segment.size = 0.5,
+    max.overlaps = Inf
+  ) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  scale_color_manual(values = c("FALSE" = "blue", "TRUE" = "red"), 
+                     labels = c(">=10 points", "<10 points"), name = "Data points") +
+  scale_size_continuous(range = c(2, 8), name = "Number of points") +
+  labs(x = "Actual PM10 (µg/m³)", y = "Predicted PM10 (µg/m³)", 
+       title = "SVR Predicted vs Actual PM10 by Country (2021)") +
+  theme_minimal()
+
+
+
+```
+
