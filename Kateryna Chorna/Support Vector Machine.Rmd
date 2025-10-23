@@ -4,14 +4,16 @@ author: "Kateryna Chorna"
 date: "2025-10-20"
 output: html_document
 ---
-# Minnie code cleaning 
+
+# Minnie code cleaning
+
 ```{r load_and_preprocess, message=FALSE, warning=FALSE}
 # Load packages
 library(dplyr)
 library(e1071)
 
 # Load the data
-data <- read.csv("who_data.csv")
+data <- read.csv("../who_data.csv")
 
 # Remove irrelevant columns
 who_data <- subset(data, select=-c(X,X.1,X.2,X.3,who_ms))
@@ -36,41 +38,53 @@ europe_data <- who_data %>%
 # Remove rows with missing values
 clean_data_europe <- na.omit(europe_data)
 
-# Check how many rows were removed
-europe_rows <- nrow(europe_data)
-rows_removed <- europe_rows - nrow(clean_data_europe)
-prop <- rows_removed / europe_rows
-prop
+summary(clean_data_europe)
+
 
 ```
 
 # Support Vector Machine (SVM)
 
-Support Vector Machines are supervised learning models used for both classification and regression problems. They work by finding an optimal boundary, known as a hyperplane, that best separates or predicts data points. The observations that lie closest to this boundary are called *support vectors*, and they are the most influential in defining the model.
+Support Vector Machines are supervised learning models used for both classification and regression problems. They work by finding an optimal boundary, known as a hyperplane, that best separates or predicts data points. The observations that lie closest to this boundary are called support vectors, and they are the most influential in defining the model.
 
-## Types of SVM
-
-There are two main types of Support Vector Machines:
-
--   **Support Vector Classification (SVC):** used when the target variable is categorical (for example, predicting a class label).\
--   **Support Vector Regression (SVR):** used when the target variable is continuous (for example, predicting a numeric value).
+There are two main types of Support Vector Machines:\
+- Support Vector Classification (SVC) which used when the target variable is categorical\
+- Support Vector Regression (SVR) which is used when the target variable is continuous
 
 ## Model used in this project
 
-Since we aim to predict **PM₁₀ pollutant concentrations**, which are **continuous values**, we use the **Support Vector Regression (SVR)** model.\
-This model finds a smooth function that predicts PM₁₀ levels as accurately as possible, while keeping the function as simple as possible to avoid overfitting. SVR cannot handle missing values directly, so rows containing `NA`s must be removed or imputed before training the model.
+Since we aim to predict PM₁₀ pollutant concentrations, which are continuous values, we use the Support Vector Regression (SVR) model.\
+This model finds a smooth function that predicts PM₁₀ levels but SVR cannot handle missing values directly, so rows containing NA's must be removed or imputed before training the model.
 
-## Why we use this method
+Support Vector Regression (SVR) could be useful for environmental data because:\
+- It can deal with non-linear relationships.\
+- It is quite robust to noise and outliers.\
+- It can use several explanatory variables at once to improve predictions.
 
-Support Vector Regression (SVR) has several potential advantages for environmental data analysis:\
-- It can handle nonlinear relationships between variables, which are often present in pollution data.\
-- It is relatively robust to noise and outliers, which may be present in real-world measurements.\
-- It allows the inclusion of multiple explanatory variables (e.g., year, country, population) to improve predictive power.
+Even though SVR has these advantages, we will also try other regression and machine learning models to see which one predicts PM₁₀ levels across European countries best.
 
-While these characteristics make SVR a promising method, we will also apply other regression and machine learning models to determine which method is most effective for predicting PM₁₀ concentrations across European countries.
+We will try different kernels in SVR to see which works best for predicting PM₁₀ levels.
 
-## Library requirements 
+1.  **Linear Kernel**
+    -   Simple and fast.
+    -   Good if the relationship between features and PM₁₀ is roughly linear.
+2.  **Polynomial Kernel**
+    -   Can capture curved relationships in the data.
+    -   Start with low degrees (e.g., 2 or 3) to avoid overfitting.
+3.  **RBF (Radial Basis Function) Kernel**
+    -   Can model complex, non-linear patterns.
+    -   Default choice if the relationship is unknown.
+    -   Gamma parameter may need tuning for best performance.
+4.  **Optional: Sigmoid Kernel**
+    -   Works like a neural network activation function.
+    -   Less common, try only if other kernels perform poorly.
+
+> *We will start with simple kernels and increase complexity to find the best model for PM₁₀ predictions.*
+
+## Library requirements
+
 In order to run our code, the following libraries are required:
+
 ```{r}
 
 # Install packages if needed
@@ -79,6 +93,7 @@ if(!require("dplyr")) install.packages("dplyr")
 if(!require("e1071")) install.packages("e1071")
 if(!require("ggrepel")) install.packages("ggrepel")
 if(!require("kableExtra")) install.packages("kableExtra")
+if(!require("plotly")) install.packages("plotly")
 
 # We load the libraries we will need throughout the project:
 library(ggplot2)
@@ -86,95 +101,147 @@ library(dplyr)
 library(e1071)
 library(ggrepel)
 library(kableExtra)
+library(plotly)
+
+
+```
+
+```{r}
+table(clean_data_europe$year)
+nrow(test_data)  # see if it's 0
 
 
 ```
 
 
+# Linear kernal SVR
 ```{r}
-# Load required package
-library(e1071)
-library(dplyr)
-
-# Make sure country is a factor
+# For categorial variables
 clean_data_europe$country_name <- as.factor(clean_data_europe$country_name)
+clean_data_europe$type_of_stations <- as.factor(clean_data_europe$type_of_stations)
+clean_data_europe$city <- as.factor(clean_data_europe$city)
 
-# Ensure there are no NAs (SVR cannot handle missing values)
-svr_data <- na.omit(clean_data_europe)
 
 # Split data into training (2010-2020) and testing (2021)
-train_data <- filter(svr_data, year <= 2020)
-test_data  <- filter(svr_data, year == 2021)
+train_data <- filter(clean_data_europe, year <= 2020)
+test_data  <- filter(clean_data_europe, year == 2021)
 
-# Train SVR model
-svr_model <- svm(pm10_concentration ~ year + country_name + population, 
-                 data = train_data, 
-                 type = "eps-regression", 
-                 kernel = "radial")  # radial kernel allows non-linear relationships
+# Fit a linear SVR model
+svr_linear_model <- svm(
+  pm10_concentration ~ year + country_name + city + population + type_of_stations + latitude + longitude, #factors in the dataset that are included in the model
+  data = train_data,
+  type = "eps-regression",  # SV regression
+  kernel = "linear"
+)
 
 # Predict PM10 for 2021
-predictions <- predict(svr_model, newdata = test_data)
+predictions_linear <- predict(svr_linear_model, newdata = test_data)
 
-# View predictions
-predictions
-
-# If actual PM10 values for 2021 are available, evaluate performance
-if("pm10_concentration" %in% colnames(test_data)) {
-  actuals <- test_data$pm10_concentration
-  rmse <- sqrt(mean((predictions - actuals)^2))
-  rmse
-}
-
-
-```
-
-
-
-
-
-```{r}
-
-
-results_country %>%
-  kable(
-    format = "html",
-    caption = "SVR Predicted vs Actual PM10 by Country (2021)",
-    digits = 2
-  ) %>%
-  kable_styling(
-    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
-    full_width = FALSE,
-    position = "center"
-  ) %>%
-  column_spec(1, bold = TRUE) %>%         # make country names bold
-  column_spec(2:4, width = "3cm") %>%    # adjust column widths
-  row_spec(0, background = "#D3D3D3")    # header background color
-
-
-```
-
-
-
-
-```{r}
-ggplot(results_country, aes(x = actual_pm10, y = predicted_pm10, label = country_name)) +
-  geom_point(aes(color = n_points < 10, size = n_points), alpha = 0.7) +
-  geom_text_repel(
-    nudge_y = 0.5,
-    size = 3,
-    segment.color = "grey50",    # line color connecting label to point
-    segment.size = 0.5,
-    max.overlaps = Inf
-  ) +
+# Evaluate performance if actual PM10 values are available
+ggplot(test_data, aes(x = pm10_concentration, y = predictions_linear)) +
+  geom_point(color = "blue", alpha = 0.6) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
-  scale_color_manual(values = c("FALSE" = "blue", "TRUE" = "red"), 
-                     labels = c(">=10 points", "<10 points"), name = "Data points") +
-  scale_size_continuous(range = c(2, 8), name = "Number of points") +
-  labs(x = "Actual PM10 (µg/m³)", y = "Predicted PM10 (µg/m³)", 
-       title = "SVR Predicted vs Actual PM10 by Country (2021)") +
+  labs(x = "Actual PM10", y = "Predicted PM10", title = "SVR Predictions vs Actual Pollution by City") +
   theme_minimal()
 
 
+# Create interactive plot
+p <- ggplot(test_data, aes(x = pm10_concentration, y = predictions_linear,
+                           text = paste("City:", city, "<br>Country:", country_name))) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Actual PM10", y = "Predicted PM10", title = "SVR Predictions vs Actual Pollution by City") +
+  theme_minimal()
+
+ggplotly(p, tooltip = "text")
+
 
 ```
 
+
+## Model Evaluation Metrics
+
+- **RMSE (Root Mean Squared Error):** Measures typical prediction error in µg/m³, penalising large errors. Lower values are better.  
+- **MAE (Mean Absolute Error):** Average absolute difference between predicted and actual PM₁₀. Less sensitive to outliers than RMSE. Lower is better.  
+- **R² (R-squared):** Proportion of variance in PM₁₀ explained by the model. Ranges from 0 to 1, higher is better.  
+
+```{r}
+actuals <- test_data$pm10_concentration
+
+# Root Mean Squared Error (RMSE)
+rmse_linear <- sqrt(mean((predictions_linear - actuals)^2))
+
+# Mean Absolute Error (MAE)
+mae_linear <- mean(abs(predictions_linear - actuals))
+
+# R-squared (proportion of variance explained)
+r_squared <- 1 - sum((predictions_linear - actuals)^2) / sum((actuals - mean(actuals))^2)
+
+# Print all metrics
+cat("RMSE:", rmse_linear, "\n")
+cat("MAE:", mae_linear, "\n")
+cat("R²:", r_squared, "\n")
+```
+
+```{r}
+library(e1071)
+library(dplyr)
+
+all_vars <- c("year", "country_name", "city", "population", 
+              "type_of_stations", "latitude", "longitude")
+
+evaluate_svr <- function(predictors, train_data, test_data) {
+  formula <- as.formula(paste("pm10_concentration ~", paste(predictors, collapse = " + ")))
+  model <- svm(formula, data = train_data, type = "eps-regression", kernel = "linear")
+  preds <- predict(model, newdata = test_data)
+  
+  actuals <- test_data$pm10_concentration
+  rmse <- sqrt(mean((preds - actuals)^2))
+  mae <- mean(abs(preds - actuals))
+  r2 <- 1 - sum((preds - actuals)^2) / sum((actuals - mean(actuals))^2)
+  
+  data.frame(predictors = paste(predictors, collapse = ", "),
+             RMSE = rmse, MAE = mae, R2 = r2)
+}
+
+results <- list()
+for (i in 1:length(all_vars)) {
+  combos <- combn(all_vars, i, simplify = FALSE)
+  for (c in combos) {
+    results[[length(results)+1]] <- evaluate_svr(c, train_data, test_data)
+  }
+}
+
+results_df <- do.call(rbind, results) %>% arrange(RMSE)
+print(results_df)
+
+
+```
+
+
+
+
+```{r}
+best_rmse <- results_df[which.min(results_df$RMSE), ]  # row with lowest RMSE
+best_mae  <- results_df[which.min(results_df$MAE), ]   # row with lowest MAE
+best_r2   <- results_df[which.max(results_df$R2), ]    # row with highest R²
+
+
+# Combine best results into one tidy summary
+best_models <- data.frame(
+  Metric = c("Best RMSE", "Best MAE", "Best R²"),
+  Predictors = c(best_rmse$predictors, best_mae$predictors, best_r2$predictors),
+  RMSE = c(best_rmse$RMSE, best_mae$RMSE, best_r2$RMSE),
+  MAE  = c(best_rmse$MAE, best_mae$MAE, best_r2$MAE),
+  R2   = c(best_rmse$R2, best_mae$R2, best_r2$R2)
+)
+
+# Print it 
+kable(
+  best_models,
+  caption = "**__Summary of Best SVR Models by Metric__**"
+)
+```
+
+Based on our evaluation of all predictor combinations using RMSE, MAE, and R², the features year, city, population, and latitude consistently produced the best performance across all metrics. Including city captures local variations in pollution, population reflects urban density and emissions, year accounts for temporal trends, and latitude captures broader geographical differences. Other potential features, such as longitude or station type, did not improve predictive accuracy, as confirmed by the metrics, so this combination provides the most reliable and interpretable SVR model.
+```
