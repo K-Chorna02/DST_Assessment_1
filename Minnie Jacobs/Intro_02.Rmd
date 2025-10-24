@@ -5,10 +5,12 @@ date: "2025-10-14"
 output: html_document
 ---
 # Introduction
-Throughout this project, we use data relevant to environmental health analysis, focusing on air pollution data from the World Health Organisation.
-The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. 
-These predictions could be used to influence policy making to address these issues. We will walk through how we cleaned and prepared our data, before examining which models we implemented for our predictive .  
 
+Throughout this project, we use data relevant to environmental health analysis, focusing on air pollution data from the World Health Organisation.
+The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. We test on pm10 concentration for 2021 for different cities in Europe, we will explain why we chose this throughout our intro.
+These predictions could be used to influence policy making to address issues of increasing pm10 over time, for example when trying to decide a threshold target similar to the Paris Climate agreement aiming to reduce temperature. 
+We will walk through how we cleaned and prepared our data, before examining which models we implemented for our predictive modelling and comparing their performance. We will also discuss the suitability of different performance measures such as RMSE for continuous predictions.
+ 
 # The data 
 Since our data is sourced from the World Health Organisation, we can say with confidence that this data was reliably sourced.
 The link to our data set can be found: 
