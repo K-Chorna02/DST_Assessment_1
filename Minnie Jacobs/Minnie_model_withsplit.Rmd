@@ -1,0 +1,498 @@
+---
+title: "Minnie_model_withsplit"
+author: "Minnie"
+date: "2025-10-24"
+output: html_document
+---
+
+```{r load}
+library(dplyr)
+data=read.csv("who_data.csv")
+who_data=subset(data,select=-c(X,X.1,X.2,X.3,who_ms))
+#Replace literal "NA" strings with proper R NA 
+who_data[who_data == "NA"]= NA
+
+#convert numeric-like columns stored as character to numeric
+num_cols= c("pm10_concentration","pm25_concentration","no2_concentration",
+              "pm10_tempcov","pm25_tempcov","no2_tempcov","population")
+who_data[num_cols] =lapply(who_data[num_cols], as.numeric) # set the data as numeric
+
+who_data$type_of_stations =as.character(who_data$type_of_stations)
+who_data$who_region =as.factor(who_data$who_region)
+who_data <- who_data %>%
+  mutate(log_population = log(population))
+
+
+#We also have that stations should be one-hot encoded
+# Define ranking system
+rankings<- c("Urban" = 5, "Traffic" = 4, "Suburban" = 3, "Background" = 2, "Rural" = 1)
+
+# Function to compute average rank per row
+get_rank <- function(x) {     #make the function
+  if (is.na(x)) return(NA)
+  types <- strsplit(x, ",")[[1]] # splits the text x into seperate pieces 
+  types <- trimws(types)  # remove spaces
+  mean(rankings[types], na.rm = TRUE)
+}
+
+who_data$station_rank <- sapply(who_data$type_of_stations, get_rank)
+
+#and finally, we can see Turkey isn't defined properly in the dataset, so we add 
+who_data$country_name[who_data$iso3 == "TUR"] <- "Turkey"
+
+library(dplyr)
+library(tidyr)
+europe_data= who_data %>%
+  filter(who_region=="4_Eur")%>%
+  select(-pm25_concentration, -pm25_tempcov)
+clean_data_europe= na.omit(europe_data) # we remove missing data here
+```
+
+Here we split the data, our model will need a column for pm10 for 2021 in order to predict this column. We split our data so that we have a column for each year from 2013-2021 for pm10 and no2 concentrations, with each city as a row. Then we take the mean of the longitude, latitude and population. Although this is inaccurate since the population changes over time, this will not impact our mdel heavily. 
+
+```{r splitting}
+#We want to consider 2013-2020 and train on 2021
+year_range <- 2013:2021
+# Keep only countries that have *all* years from 2013 to 2021,we've also had to take an average of longitude and latitude for each city. 
+complete_europe_data_year <- clean_data_europe %>%
+  group_by(city) %>%
+  filter(all(year_range %in% year)) %>%
+  mutate(
+  longitude = mean(longitude, na.rm = TRUE),
+  latitude  = mean(latitude, na.rm = TRUE),
+  population=mean(population, na.rm=TRUE)
+) %>%
+  ungroup()
+
+clean_europe_data <- complete_europe_data_year %>%
+  pivot_wider(
+    id_cols = c(city, country_name, longitude, latitude, population),
+    names_from = year,
+    values_from = c(pm10_concentration, no2_concentration),
+    names_glue = "{.value}_{year}"
+  )%>%
+  select(-pm10_concentration_2022, -no2_concentration_2022)
+```
+
+# EDA from section 0
+```{r openair}
+library(openair)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+
+# Convert back to long format
+data_long <- clean_europe_data %>%
+  pivot_longer(
+    cols = starts_with("pm10_concentration_") | starts_with("no2_concentration_"),
+    names_to = c(".value", "year"),
+    names_pattern = "(pm10_concentration|no2_concentration)_(\\d+)"
+  ) %>%
+  mutate(year = as.integer(year))
+
+# Randomly select 15 cities
+cities_sample <- data_long %>%
+  distinct(city) %>%
+  sample_n(15) %>%
+  pull(city)
+
+# Aggregate and prepare for openair
+data_openair_city <- data_long %>%
+  filter(city %in% cities_sample) %>%
+  group_by(city, year) %>%
+  summarise(
+    pm10 = mean(pm10_concentration, na.rm = TRUE),
+    no2  = mean(no2_concentration, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(date = ymd(paste0(year, "-06-30"))) %>%  # mid-year date
+  select(date, city, pm10, no2)
+
+# Plot
+timePlot(
+  data_openair_city,
+  pollutant = c("pm10", "no2"),
+  type = "city",
+  main = "PM10 and NO₂ annual concentrations by European city"
+)
+
+```
+
+# Section 1: Linear regression models
+
+The first model we explored for prediction was the commonly seen linear regression. From previous EDA that we carried out, we used the openair package for time series of pm10 and no2 concentrations for different cities in Europe,we saw from this that linear regression should be an appropriate model.
+Linear regression cannot work if we have missing values, so for this we use our clean_europe_data. Our goal is to predict the pm10 concentration for 2021 (2022 contains insufficient data for testing) using previous years. We aim to test on a variety of cities to see how effective our model is for predicting pm10 for cities in Europe. 
+
+## Model equation
+
+We decided to include the following covariates in our model:
+
+- **population** (city size) -numeric, continuous, but has a wide range- might have to transform.
+- **year** (to capture time effects) - numeric, discrete, 2013-2021 once cleaned
+- **no2_concentration** we found this was strongly correlated with pm10_concentration so may contribute to prediction.
+-  **country_name** - categorical (we focused on european countries).
+- **latitude/longitude** - could be interesting exploration of location.
+
+
+So the equation for our linear regression model can be given by:
+
+$$
+\text{PM}_{10,i} = \beta_0 + \beta_1 \cdot \text{Population}_i + \beta_2 \cdot \text{Year}_i + \beta_3 \cdot \text{longitude}_i + \beta_4 \cdot \text{latitude}_i+ \beta_5 \cdot \text{country_name}_i+ \varepsilon_i,
+$$
+
+where $\varepsilon_i \sim N(0,\sigma^2)$.
+
+
+## Model
+Here we want to split into test and training data, where training is all of the pm_10 values for the years before 2021, and our test is our 2021 data.
+We use packages such as 'carat' that we saw in the workshop 2.3. 
+We then create an additional split of 80%-20%, and test on our data at the very end.
+
+```{r pred r1}
+predictors=c(paste0("pm10_concentration_", 2013:2020),
+  paste0("no2_concentration_", 2013:2020),
+  "longitude", "latitude", "population")
+
+target= "pm10_concentration_2021"
+
+set.seed(123) 
+n=nrow(clean_europe_data)
+train_index=sample(seq_len(n), size = 0.8 * n)
+
+train_data=clean_europe_data[train_index, ]
+test_data =clean_europe_data[-train_index, ]
+actual =test_data$pm10_concentration_2021
+model =lm(pm10_concentration_2021 ~ ., data = train_data[, c(predictors, target)])
+summary(model)
+predictions =predict(model, newdata = test_data)
+```
+The estimated coefficients can be interpreted as follows:
+
+-   **Intercept**: $\hat{\beta}_0 = 4.3865$\
+    This represents the expected ${PM}_{10}$ concentration when
+    all other variables are zero.\
+    Since this situation is not realistic, the intercept is not of
+    direct interest.
+
+-   **Pm_10_concentrations**: We see that most previous years aren't significant in the prediction of pm10, apart from 2020 which appears to be very statistically significant. $\hat{\beta}_1 \approx 1.86 \times 10^{-6}$\
+
+-   **Year**: $\hat{\beta}_2 \approx 0.118$ \
+    Holding population constant, each additional year is associated with
+    an increase of about $0.12$ units in ${PM}_{2.5}$.\
+    This suggests a slight upward trend in pollution over time across
+    the dataset. We see that most previous years (2013-19) aren't statistically significant, however pm10_concentration_2020 is very significant. 
+
+-   **Model fit**: The coefficient of determination is
+    $R^2 \approx 0.9332$.\
+    This means that the model explains 93.32% of the variation
+    in ${PM}_{1.0}$ concentrations.\
+    While population and year are statistically significant predictors,
+    the majority of the variability remains unexplained, indicating that
+    additional covariates (such as type of station, country, or
+    geographic factors) would be needed to improve the model.
+    
+We test our model's fit on the linear regression assumptions:
+```{r pred}
+par(mfrow = c(2, 2))
+plot(model)
+```
+As we can see from the :
+
+*Residuals vs fitted :* The residuals are fairly randomly scattered, suggesting our assumption for linearity holds. 
+
+*Q-Q residuals:* The residuals mostly lie in a diagonal line apart from at the tails, but overall we can see the assumptoin of normality holds.  apart from at the tailes where 
+
+*Scale-location:* The residuals are randomly scattered around the line, so we can assume that the constant variance assumption is satisfied. 
+
+*Residuals vs leverage:* We see most of our data is clustered around the left hand side of the graph, suggesting we have a left skew. There appear to be no extreme outliers. 
+
+## Model visualisation
+And now we create a plot of our actual pm10 concentrations against our predicted for each city, to compare how close our model was:
+```{r visual}
+library(ggplot2)
+
+results_df <- data.frame(
+  city = test_data$city,
+  actual = actual,
+  country = test_data$country_name,
+  predicted = predictions
+)
+
+ggplot(results_df, aes(x = actual, y = predicted, color = country)) +
+  geom_point( alpha = 0.7, size = 3) +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(
+    title = "Actual vs Predicted pm10 Concentrations (2021)",
+    x = "Actual pm10 concentrations",
+    y = "Predicted pm10 concentrations", color = "country"
+  ) +
+  theme_minimal(base_size = 10)+ theme(legend.position = "right")
+
+```
+
+
+
+## Cross- validation
+Now we carry out cross validation : 
+
+```{r cv test}
+library(caret)
+
+# Define target and predictors
+target <- "pm10_concentration_2021"
+predictors <- c("no2_concentration_2020", "no2_concentration_2019","no2_concentration_2018", "no2_concentration_2017", "population", "longitude", "latitude")
+
+# Create formula dynamically
+formula <- as.formula(paste(target, "~ ."))
+
+# Define cross-validation
+train_control <- trainControl(method = "cv", number = 10)
+
+# Fit cross-validated model
+cv_model <- train(
+  formula,
+  data = train_data[, c(predictors, target)],
+  method = "lm",
+  trControl = train_control
+)
+
+# View cross-validation results
+cv_model$results
+
+# Predict on 2021 test data
+predictions <- predict(cv_model, newdata = test_data)
+
+```
+Evidently, we have a very large amount of temporal correlation, making our model effective for predicting recent years based on previous years. To minimise the temporal correlation we could remove the pm10 rows. 
+
+
+## Evaluating the metric 
+
+We use k-fold CV to test ... 
+
+-   **Model fit**: The $R^2$ is $0.068$, meaning the model explains
+    about $7\%$ of the variance in PM$_{2.5}$.\
+    This is still low, but represents an improvement compared with the
+    simpler model (population + year only),\
+    where $R^2 \approx 0.051$.
+
+
+
+## Extending our linear regression by regularising
+Obviously, we can see that all of our years arer very heavily correlated, so we extend our analysis by using ridge/lasso . These require scaling. 
+
+Model Validation:
+
+First we look at the correlation between the previous year, as we want to ensure we are predicting across the entire model, not simply the previous.
+
+```{r correlation}
+cor(clean_europe_data$pm10_concentration_2020, 
+    clean_europe_data$pm10_concentration_2021, use = "complete.obs")
+```
+
+Evidently, this could lead to big issues, perhaps we could consider a model where we don't use previous pm10 but instead all of the other variables ?
+
+Variance inflation factors?? 
+
+```{r VIF}
+#library(car)
+#car::vif(lm(response ~ ., data = model_data))
+
+```
+Here we see VIF is greater than 10 for most variables apart from longitude, latitude and population, suggesting a high amount of correlation between variables. 
+
+
+```{r model insp lectures}
+library(dplyr)
+library(caret)
+
+# 1️⃣ Prepare train/test data
+train_years <- paste0("pm10_concentration_", 2013:2020)
+test_year <- "pm10_concentration_2021"
+
+# Make sure all columns exist
+train_years <- train_years[train_years %in% colnames(clean_europe_data)]
+
+# Remove any rows with missing 2021 PM10
+pm10_data <- clean_europe_data %>%
+  select(all_of(c("city", "country_name", "population","longitude", "latitude", train_years, test_year))) %>%
+  na.omit()
+
+# Split features and target
+X <- pm10_data %>%
+  select(country_name, population, longitude, latitude, all_of(train_years))
+
+y <- pm10_data[[test_year]]
+
+# Combine into one training frame
+train_df <- cbind(X, pm10_2021 = y)
+
+# 2️⃣ Split into train/test
+set.seed(123)
+train_idx <- createDataPartition(train_df$pm10_2021, p = 0.8, list = FALSE)
+train_data <- train_df[train_idx, ]
+test_data <- train_df[-train_idx, ]
+
+# 3️⃣ Train linear regression model
+lm_model <- train(
+  pm10_2021 ~ .,
+  data = train_data,
+  method = "lm",
+  trControl = trainControl(method = "cv", number = 5)
+)
+
+summary(lm_model$finalModel)
+
+# 4️⃣ Evaluate model
+pred_train <- predict(lm_model, train_data)
+pred_test <- predict(lm_model, test_data)
+
+r2_train <- R2(pred = pred_train, obs = train_data$pm10_2021)
+r2_test <- R2(pred = pred_test, obs = test_data$pm10_2021)
+rmse_train <- RMSE(pred = pred_train, obs = train_data$pm10_2021)
+rmse_test <- RMSE(pred = pred_test, obs = test_data$pm10_2021)
+
+results <- data.frame(
+  Data = c("Train", "Test"),
+  R2 = c(r2_train, r2_test),
+  RMSE = c(rmse_train, rmse_test)
+)
+print(results)
+
+# 5️⃣ (Optional) Stepwise AIC model
+lm_step <- train(
+  pm10_2021 ~ .,
+  data = train_data,
+  method = "lmStepAIC",
+  direction = "both",
+  trControl = trainControl(method = "cv", number = 5),
+  trace = FALSE
+)
+
+summary(lm_step$finalModel)
+
+# Compare stepwise vs full
+r2_step_test <- R2(pred = predict(lm_step, test_data), obs = test_data$pm10_2021)
+cat("Stepwise test R²:", r2_step_test, "\n")
+
+
+```
+
+
+### Ridge
+
+```{r ridge}
+library(dplyr)
+library(caret)
+
+train_years <- paste0("pm10_concentration_", "no2_concentration_",2013:2020)
+test_year   <- "pm10_concentration_2021"
+
+# Make sure columns exist
+train_years <- train_years[train_years %in% colnames(clean_europe_data)]
+
+# Remove rows with missing target
+pm10_data <- clean_europe_data %>%
+  select(all_of(c("country_name", "population", "longitude", "latitude", train_years, test_year))) %>%
+  na.omit()
+
+# Split features and target
+X <- pm10_data %>%
+  select(country_name, population, longitude, latitude, all_of(train_years))
+y <- pm10_data[[test_year]]
+
+# Convert categorical vars to dummy variables
+X_dummy <- model.matrix(~ ., data = X)[, -1]  # remove intercept
+
+# Combine into full training set
+train_df <- data.frame(X_dummy, pm10_2021 = y)
+
+# 2️⃣ Split into train/test
+set.seed(123)
+train_idx <- createDataPartition(train_df$pm10_2021, p = 0.8, list = FALSE)
+train_data <- train_df[train_idx, ]
+test_data  <- train_df[-train_idx, ]
+
+# 3️⃣ Ridge Regression (alpha = 0)
+ridge_model <- train(
+  pm10_2021 ~ .,
+  data = train_data,
+  method = "glmnet",
+  trControl = trainControl(method = "cv", number = 10),
+  tuneGrid = expand.grid(alpha = 0, lambda = 10^seq(-3, 3, length = 100))
+)
+
+cat("Best λ for Ridge:", ridge_model$bestTune$lambda, "\n")
+print(ridge_model$bestTune)
+plot(ridge_model)
+
+# 4️⃣ Lasso Regression (alpha = 1)
+lasso_model <- train(
+  pm10_2021 ~ .,
+  data = train_data,
+  method = "glmnet",
+  trControl = trainControl(method = "cv", number = 10),
+  tuneGrid = expand.grid(alpha = 1, lambda = 10^seq(-3, 3, length = 100))
+)
+
+cat("Best λ for Lasso:", lasso_model$bestTune$lambda, "\n")
+print(lasso_model$bestTune)
+plot(lasso_model)
+
+# 5️⃣ Evaluate models
+evaluate_model <- function(model, train_data, test_data) {
+  pred_train <- predict(model, train_data)
+  pred_test  <- predict(model, test_data)
+  data.frame(
+    Model = model$method,
+    R2_Train = R2(pred_train, train_data$pm10_2021),
+    R2_Test  = R2(pred_test, test_data$pm10_2021),
+    RMSE_Train = RMSE(pred_train, train_data$pm10_2021),
+    RMSE_Test  = RMSE(pred_test, test_data$pm10_2021)
+  )
+}
+
+results <- bind_rows(
+  evaluate_model(ridge_model, train_data, test_data),
+  evaluate_model(lasso_model, train_data, test_data)
+)
+print(results)
+
+# 6️⃣ Optional: Compare with your OLS baseline
+lm_model <- train(
+  pm10_2021 ~ ., data = train_data, method = "lm",
+  trControl = trainControl(method = "cv", number = 5)
+)
+
+ols_res <- evaluate_model(lm_model, train_data, test_data)
+results_all <- bind_rows(ols_res, results)
+print(results_all)
+
+```
+
+
+
+
+
+To do this eﬃciently, it uses K-fold CV to train on K-1 folds and validate on 1 fold of the training data. It can loop over all choices of validation
+fold, increasing the compute K-times but reducing sampling variability. The Testing data is then completely unpolluted by the training step.
+Validation data is only needed if there is some hyper parameter to be fit, but it also can be of use in regression for model (i.e. variable) selection.
+
+
+## Conclusions
+To conclude our section on linear regression, we found our initial linear regression model was highly accurate, but this was due to temporal correlation. To resolve this we regularised our linear regression model by using lasso and ridge methods. 
+
+Significant predictors we found were ... 
+
+Across all three pollutants, **PM_2.5**, **PM_10**, and **NO_10**,population and urbanisation emerged as strong, statistically significant predictors of higher pollution.  
+Regional effects also proved important: while some regions (such as the Eastern Mediterranean) experienced higher pollution, others (like Europe and the Western Pacific) recorded significantly lower levels.  
+
+To amend this and further our analysis, we would need to consider additional explanatory variables. 
+These could include: 
+
+1. Whether conditions - temperature, wind speed, humidity. 
+2. Industrial emissions. 
+3. Traffic density. 
+
+Similarly, we could consider exploring non-linear relationships. This could include squared or log-transformed terms for population or year, as an attempt to capture diminishing or accelerating effects. 
+
