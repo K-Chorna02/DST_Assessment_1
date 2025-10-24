@@ -4,14 +4,16 @@ author: "Kateryna Chorna"
 date: "2025-10-20"
 output: html_document
 ---
-# Minnie code cleaning 
+
+# Data Cleaning
+
 ```{r load_and_preprocess, message=FALSE, warning=FALSE}
 # Load packages
 library(dplyr)
 library(e1071)
 
 # Load the data
-data <- read.csv("who_data.csv")
+data <- read.csv("../who_data.csv")
 
 # Remove irrelevant columns
 who_data <- subset(data, select=-c(X,X.1,X.2,X.3,who_ms))
@@ -36,41 +38,68 @@ europe_data <- who_data %>%
 # Remove rows with missing values
 clean_data_europe <- na.omit(europe_data)
 
-# Check how many rows were removed
-europe_rows <- nrow(europe_data)
-rows_removed <- europe_rows - nrow(clean_data_europe)
-prop <- rows_removed / europe_rows
-prop
+summary(clean_data_europe)
+
 
 ```
 
+
+```{r}
+# For categorial variables
+clean_data_europe$country_name <- as.factor(clean_data_europe$country_name)
+clean_data_europe$type_of_stations <- as.factor(clean_data_europe$type_of_stations)
+clean_data_europe$city <- as.factor(clean_data_europe$city)
+
+
+# Split data into training (2010-2019), validation (2020) and testing (2021)
+train_data <- filter(clean_data_europe, year <= 2019)
+valid_data <- filter(clean_data_europe, year == 2020)
+test_data  <- filter(clean_data_europe, year == 2021)
+```
+
+
 # Support Vector Machine (SVM)
 
-Support Vector Machines are supervised learning models used for both classification and regression problems. They work by finding an optimal boundary, known as a hyperplane, that best separates or predicts data points. The observations that lie closest to this boundary are called *support vectors*, and they are the most influential in defining the model.
+Support Vector Machines are supervised learning models used for both classification and regression problems. They work by finding an optimal boundary, known as a hyperplane, that best separates or predicts data points. The observations that lie closest to this boundary are called support vectors, and they are the most influential in defining the model.
 
-## Types of SVM
-
-There are two main types of Support Vector Machines:
-
--   **Support Vector Classification (SVC):** used when the target variable is categorical (for example, predicting a class label).\
--   **Support Vector Regression (SVR):** used when the target variable is continuous (for example, predicting a numeric value).
+There are two main types of Support Vector Machines:\
+- Support Vector Classification (SVC) which used when the target variable is categorical\
+- Support Vector Regression (SVR) which is used when the target variable is continuous
 
 ## Model used in this project
 
-Since we aim to predict **PM₁₀ pollutant concentrations**, which are **continuous values**, we use the **Support Vector Regression (SVR)** model.\
-This model finds a smooth function that predicts PM₁₀ levels as accurately as possible, while keeping the function as simple as possible to avoid overfitting. SVR cannot handle missing values directly, so rows containing `NA`s must be removed or imputed before training the model.
+Since we aim to predict PM₁₀ pollutant concentrations, which are continuous values, we use the Support Vector Regression (SVR) model.\
+This model finds a smooth function that predicts PM₁₀ levels but SVR cannot handle missing values directly, so rows containing NA's must be removed or imputed before training the model.
 
-## Why we use this method
+Support Vector Regression (SVR) could be useful for environmental data because:\
+- It can deal with non-linear relationships.\
+- It is quite robust to noise and outliers.\
+- It can use several explanatory variables at once to improve predictions.
 
-Support Vector Regression (SVR) has several potential advantages for environmental data analysis:\
-- It can handle nonlinear relationships between variables, which are often present in pollution data.\
-- It is relatively robust to noise and outliers, which may be present in real-world measurements.\
-- It allows the inclusion of multiple explanatory variables (e.g., year, country, population) to improve predictive power.
+Even though SVR has these advantages, we will also try other regression and machine learning models to see which one predicts PM₁₀ levels across European countries best.
 
-While these characteristics make SVR a promising method, we will also apply other regression and machine learning models to determine which method is most effective for predicting PM₁₀ concentrations across European countries.
+We will try different kernels in SVR to see which works best for predicting PM₁₀ levels.
 
-## Library requirements 
+1.  **Linear Kernel**
+    -   Simple and fast.
+    -   Good if the relationship between features and PM₁₀ is roughly linear.
+2.  **Polynomial Kernel**
+    -   Can capture curved relationships in the data.
+    -   Start with low degrees (e.g., 2 or 3) to avoid overfitting.
+3.  **RBF (Radial Basis Function) Kernel**
+    -   Can model complex, non-linear patterns.
+    -   Default choice if the relationship is unknown.
+    -   Gamma parameter may need tuning for best performance.
+4.  **Optional: Sigmoid Kernel**
+    -   Works like a neural network activation function.
+    -   Less common, try only if other kernels perform poorly.
+
+> *We will start with simple kernels and increase complexity to find the best model for PM₁₀ predictions.*
+
+## Library requirements
+
 In order to run our code, the following libraries are required:
+
 ```{r}
 
 # Install packages if needed
@@ -79,6 +108,9 @@ if(!require("dplyr")) install.packages("dplyr")
 if(!require("e1071")) install.packages("e1071")
 if(!require("ggrepel")) install.packages("ggrepel")
 if(!require("kableExtra")) install.packages("kableExtra")
+if(!require("plotly")) install.packages("plotly")
+if(!require("caret")) install.packages("caret")
+if(!require("stringi")) install.packages("stringi")
 
 # We load the libraries we will need throughout the project:
 library(ggplot2)
@@ -86,95 +118,292 @@ library(dplyr)
 library(e1071)
 library(ggrepel)
 library(kableExtra)
+library(plotly)
+library(caret)
+library(stringi)
 
 
-```
 
-
-```{r}
-# Load required package
-library(e1071)
-library(dplyr)
-
-# Make sure country is a factor
-clean_data_europe$country_name <- as.factor(clean_data_europe$country_name)
-
-# Ensure there are no NAs (SVR cannot handle missing values)
-svr_data <- na.omit(clean_data_europe)
-
-# Split data into training (2010-2020) and testing (2021)
-train_data <- filter(svr_data, year <= 2020)
-test_data  <- filter(svr_data, year == 2021)
-
-# Train SVR model
-svr_model <- svm(pm10_concentration ~ year + country_name + population, 
-                 data = train_data, 
-                 type = "eps-regression", 
-                 kernel = "radial")  # radial kernel allows non-linear relationships
-
-# Predict PM10 for 2021
-predictions <- predict(svr_model, newdata = test_data)
-
-# View predictions
-predictions
-
-# If actual PM10 values for 2021 are available, evaluate performance
-if("pm10_concentration" %in% colnames(test_data)) {
-  actuals <- test_data$pm10_concentration
-  rmse <- sqrt(mean((predictions - actuals)^2))
-  rmse
-}
 
 
 ```
 
 
 
-
-
-```{r}
-
-
-results_country %>%
-  kable(
-    format = "html",
-    caption = "SVR Predicted vs Actual PM10 by Country (2021)",
-    digits = 2
-  ) %>%
-  kable_styling(
-    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
-    full_width = FALSE,
-    position = "center"
-  ) %>%
-  column_spec(1, bold = TRUE) %>%         # make country names bold
-  column_spec(2:4, width = "3cm") %>%    # adjust column widths
-  row_spec(0, background = "#D3D3D3")    # header background color
-
-
-```
-
-
-
+# Linear Kernal SVR
 
 ```{r}
-ggplot(results_country, aes(x = actual_pm10, y = predicted_pm10, label = country_name)) +
-  geom_point(aes(color = n_points < 10, size = n_points), alpha = 0.7) +
-  geom_text_repel(
-    nudge_y = 0.5,
-    size = 3,
-    segment.color = "grey50",    # line color connecting label to point
-    segment.size = 0.5,
-    max.overlaps = Inf
-  ) +
+
+
+# Fit linear SVR on training data (2010–2019)
+svr_linear_model <- svm(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+  data = train_data,
+  type = "eps-regression",
+  kernel = "linear"
+)
+
+# Predict on validation data (2020)
+predictions_linear_valid <- predict(svr_linear_model, newdata = valid_data)
+
+# Evaluate performance on validation data
+ggplot(valid_data, aes(x = pm10_concentration, y = predictions_linear_valid)) +
+  geom_point(color = "blue", alpha = 0.6) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
-  scale_color_manual(values = c("FALSE" = "blue", "TRUE" = "red"), 
-                     labels = c(">=10 points", "<10 points"), name = "Data points") +
-  scale_size_continuous(range = c(2, 8), name = "Number of points") +
-  labs(x = "Actual PM10 (µg/m³)", y = "Predicted PM10 (µg/m³)", 
-       title = "SVR Predicted vs Actual PM10 by Country (2021)") +
+  labs(x = "Actual PM10", y = "Predicted PM10", title = "Linear SVR Predictions vs Actual (Validation 2020)") +
   theme_minimal()
 
 
+# Create UTF-8 copies for tooltips only
+tooltip_city <- iconv(valid_data$city, from = "", to = "UTF-8", sub = "?")
+tooltip_country <- iconv(valid_data$country_name, from = "", to = "UTF-8", sub = "?")
+
+# Interractive plot
+
+p_valid <- ggplot(valid_data, aes(
+  x = pm10_concentration,
+  y = predictions_linear_valid,
+  text = I(paste0("City: ", tooltip_city, "<br>Country: ", tooltip_country))
+)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Actual PM10",
+    y = "Predicted PM10",
+    title = "Linear SVR Predictions vs Actual (Validation 2020)"
+  ) +
+  theme_minimal()
+
+ggplotly(p_valid, tooltip = "text")
+
 
 ```
+
+
+## Model Evaluation Metrics
+
+- **RMSE (Root Mean Squared Error):** Measures typical prediction error in µg/m³, penalising large errors. Lower values are better.  
+- **MAE (Mean Absolute Error):** Average absolute difference between predicted and actual PM₁₀. Less sensitive to outliers than RMSE. Lower is better.  
+- **R² (R-squared):** Proportion of variance in PM₁₀ explained by the model. Ranges from 0 to 1, higher is better.  
+
+```{r}
+# Actual PM10 values for validation data
+actuals_linear_valid <- valid_data$pm10_concentration
+
+# Root Mean Squared Error (RMSE)
+rmse_linear_valid <- sqrt(mean((predictions_linear_valid - actuals_linear_valid)^2))
+
+# Mean Absolute Error (MAE)
+mae_linear_valid <- mean(abs(predictions_linear_valid - actuals_linear_valid))
+
+# R-squared (proportion of variance explained)
+r_squared_linear_valid <- 1 - sum((predictions_linear_valid - actuals_linear_valid)^2) / 
+                         sum((actuals_linear_valid - mean(actuals_linear_valid))^2)
+
+# Print all metrics
+cat("RMSE (Linear SVR - Validation):", rmse_linear_valid, "\n")
+cat("MAE (Linear SVR - Validation):", mae_linear_valid, "\n")
+cat("R² (Linear SVR - Validation):", r_squared_linear_valid, "\n")
+
+```
+# Polynomial Kernel 
+
+```{r}
+
+# Fit a polynomial SVR model on training data (2010–2019)
+svr_poly_model <- svm(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+  data = train_data,
+  type = "eps-regression",
+  kernel = "polynomial",
+  degree = 2,   # adjust depending on nonlinearity
+  coef0 = 1     # constant term in the polynomial kernel
+)
+
+# Predict PM10 for validation data (2020)
+predictions_poly_valid <- predict(svr_poly_model, newdata = valid_data)
+
+# Evaluate performance on validation data
+ggplot(valid_data, aes(x = pm10_concentration, y = predictions_poly_valid)) +
+  geom_point(color = "purple", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Actual PM10", y = "Predicted PM10", title = "Polynomial SVR Predictions vs Actual (Validation 2020)") +
+  theme_minimal()
+
+# Interactive plot
+p_poly_valid <- ggplot(valid_data, aes(
+  x = pm10_concentration,
+  y = predictions_poly_valid,
+  text = I(paste0("City: ", tooltip_city, "<br>Country: ", tooltip_country))
+)) +
+  geom_point(color = "purple", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Actual PM10",
+    y = "Predicted PM10",
+    title = "Polynomial SVR Predictions vs Actual (Validation 2020)"
+  ) +
+  theme_minimal()
+
+ggplotly(p_poly_valid, tooltip = "text")
+
+
+```
+## Model Evaluation
+
+```{r}
+# Actual PM10 values for validation data
+actuals_poly_valid <- valid_data$pm10_concentration
+
+# Root Mean Squared Error (RMSE)
+rmse_poly_valid <- sqrt(mean((predictions_poly_valid - actuals_poly_valid)^2))
+
+# Mean Absolute Error (MAE)
+mae_poly_valid <- mean(abs(predictions_poly_valid - actuals_poly_valid))
+
+# R-squared (proportion of variance explained)
+r2_poly_valid <- 1 - sum((predictions_poly_valid - actuals_poly_valid)^2) / 
+                 sum((actuals_poly_valid - mean(actuals_poly_valid))^2)
+
+# Print all metrics
+cat("RMSE (Polynomial - Validation):", rmse_poly_valid, "\n")
+cat("MAE (Polynomial - Validation):", mae_poly_valid, "\n")
+cat("R² (Polynomial - Validation):", r2_poly_valid, "\n")
+
+
+```
+Our model is already better than the linear one 
+
+## Hyperparameter tuning
+
+```{r}
+library(e1071)
+library(dplyr)
+
+# Hyperparameter grid
+grid <- expand.grid(
+  degree = c(2, 3, 4),
+  coef0  = c(0, 1, 2)
+)
+
+# Create an empty results table
+results <- data.frame(
+  degree = integer(),
+  coef0 = numeric(),
+  RMSE = numeric(),
+  MAE = numeric(),
+  R2 = numeric()
+)
+
+# Loop through all combinations
+for (i in 1:nrow(grid)) {
+  d <- grid$degree[i]
+  c0 <- grid$coef0[i]
+  
+  # Fit polynomial SVR on training data
+  model <- svm(
+    pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+    data = train_data,
+    type = "eps-regression",
+    kernel = "polynomial",
+    degree = d,
+    coef0 = c0
+  )
+  
+  # Predict on validation data
+  pred_valid <- predict(model, newdata = valid_data)
+  actuals <- valid_data$pm10_concentration
+  
+  # Compute metrics
+  rmse <- sqrt(mean((pred_valid - actuals)^2))
+  mae  <- mean(abs(pred_valid - actuals))
+  r2   <- 1 - sum((pred_valid - actuals)^2) / sum((actuals - mean(actuals))^2)
+  
+  # Store results in table
+  results <- rbind(results, data.frame(
+    degree = d,
+    coef0  = c0,
+    RMSE   = rmse,
+    MAE    = mae,
+    R2     = r2
+  ))
+}
+
+# Arrange by RMSE ascending
+results <- results %>% arrange(RMSE)
+
+# Show the table
+print(results)
+
+```
+## Final polynomial model
+
+```{r}
+
+# Fit polynomial SVR on training data (2010–2019) using best hyperparameters
+svr_poly_model_best  <- svm(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+  data = train_data,
+  type = "eps-regression",
+  kernel = "polynomial",
+  degree = 3,   # best from validation
+  coef0 = 2     # best from validation
+)
+
+# Predict PM10 for validation data (2020)
+predictions_poly_valid_best <- predict(svr_poly_model_best, newdata = valid_data)
+
+# Static plot
+ggplot(valid_data, aes(x = pm10_concentration, y = predictions_poly_valid_best)) +
+  geom_point(color = "purple", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Actual PM10", y = "Predicted PM10",
+       title = "Polynomial SVR Predictions vs Actual (Validation 2020)") +
+  theme_minimal()
+
+# Interactive plot with tooltips
+p_poly_valid <- ggplot(valid_data, aes(
+  x = pm10_concentration,
+  y = predictions_poly_valid_best,
+  text = paste0("City: ", tooltip_city, "<br>Country: ", tooltip_country)
+)) +
+  geom_point(color = "purple", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Actual PM10", y = "Predicted PM10",
+       title = "Polynomial SVR Predictions vs Actual (Validation 2020)") +
+  theme_minimal()
+
+ggplotly(p_poly_valid, tooltip = "text")
+
+
+```
+
+## Model Evaluation
+
+
+```{r}
+
+# Actual PM10 values for validation data
+actuals_poly_valid_best <- valid_data$pm10_concentration
+
+# Root Mean Squared Error (RMSE)
+rmse_poly_valid_best <- sqrt(mean((predictions_poly_valid_best - actuals_poly_valid_best)^2))
+
+# Mean Absolute Error (MAE)
+mae_poly_valid_best <- mean(abs(predictions_poly_valid_best - actuals_poly_valid_best))
+
+# R-squared (proportion of variance explained)
+r2_poly_valid_best <- 1 - sum((predictions_poly_valid_best - actuals_poly_valid_best)^2) / 
+                      sum((actuals_poly_valid_best - mean(actuals_poly_valid_best))^2)
+
+# Print all metrics
+cat("RMSE (Polynomial - Validation - Best):", rmse_poly_valid_best, "\n")
+cat("MAE (Polynomial - Validation - Best):", mae_poly_valid_best, "\n")
+cat("R² (Polynomial - Validation - Best):", r2_poly_valid_best, "\n")
+
+
+
+
+```
+
 
