@@ -2,7 +2,11 @@
 title: "Kateryna Chorna Support Vector Machine"
 author: "Kateryna Chorna"
 date: "2025-10-20"
-output: html_document
+output:
+  html_document:
+    toc: true
+    theme: united
+    number_sections: true
 ---
 
 # Data Cleaning
@@ -90,9 +94,6 @@ We will try different kernels in SVR to see which works best for predicting PM�
     -   Can model complex, non-linear patterns.
     -   Default choice if the relationship is unknown.
     -   Gamma parameter may need tuning for best performance.
-4.  **Optional: Sigmoid Kernel**
-    -   Works like a neural network activation function.
-    -   Less common, try only if other kernels perform poorly.
 
 > *We will start with simple kernels and increase complexity to find the best model for PM₁₀ predictions.*
 
@@ -206,7 +207,7 @@ cat("MAE (Linear SVR - Validation):", mae_linear_valid, "\n")
 cat("R² (Linear SVR - Validation):", r_squared_linear_valid, "\n")
 
 ```
-# Polynomial Kernel 
+# Polynomial Kernel SVR
 
 ```{r}
 
@@ -406,4 +407,212 @@ cat("R² (Polynomial - Validation - Best):", r2_poly_valid_best, "\n")
 
 ```
 
+# RBF (Radial Basis Function) Kernel SVR
+
+
+```{r}
+# libraries used 
+#library(e1071)
+#library(ggplot2)
+#library(plotly)
+#library(stringi)
+
+# Create UTF-8 copies for tooltips only
+tooltip_city <- iconv(valid_data$city, from = "", to = "UTF-8", sub = "?")
+tooltip_country <- iconv(valid_data$country_name, from = "", to = "UTF-8", sub = "?")
+
+# Fit RBF SVR on training data (2013–2019)
+svr_rbf_model <- svm(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+  data = train_data,
+  type = "eps-regression",
+  kernel = "radial",
+  gamma = 0.01,  # example
+  cost = 1      # example
+)
+
+# Predict PM10 for validation data (2020)
+predictions_rbf_valid <- predict(svr_rbf_model, newdata = valid_data)
+
+# Static plot
+ggplot(valid_data, aes(x = pm10_concentration, y = predictions_rbf_valid)) +
+  geom_point(color = "darkgreen", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Actual PM10", y = "Predicted PM10",
+       title = "RBF SVR Predictions vs Actual (Validation 2020)") +
+  theme_minimal()
+
+# Interactive plot with tooltips
+p_rbf_valid <- ggplot(valid_data, aes(
+  x = pm10_concentration,
+  y = predictions_rbf_valid,
+  text = paste0("City: ", tooltip_city, "<br>Country: ", tooltip_country)
+)) +
+  geom_point(color = "darkgreen", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Actual PM10", y = "Predicted PM10",
+       title = "RBF SVR Predictions vs Actual (Validation 2020)") +
+  theme_minimal()
+
+ggplotly(p_rbf_valid, tooltip = "text")
+
+
+
+
+```
+## Model Evaluation
+```{r}
+
+# Compute validation metrics
+actuals_rbf_valid <- valid_data$pm10_concentration
+rmse_rbf_valid <- sqrt(mean((predictions_rbf_valid - actuals_rbf_valid)^2))
+mae_rbf_valid <- mean(abs(predictions_rbf_valid - actuals_rbf_valid))
+r2_rbf_valid <- 1 - sum((predictions_rbf_valid - actuals_rbf_valid)^2) / 
+                sum((actuals_rbf_valid - mean(actuals_rbf_valid))^2)
+
+cat("RMSE (RBF - Validation):", rmse_rbf_valid, "\n")
+cat("MAE (RBF - Validation):", mae_rbf_valid, "\n")
+cat("R2  (RBF - Validation):", r2_rbf_valid, "\n")
+
+```
+
+This is already better than polynomial kernel 
+
+##Hyperparameter Tuning for the RBF Kernel
+
+```{r}
+# Hyperparameter grid for RBF kernel
+grid_rbf <- expand.grid(
+  gamma = c(0.01, 0.1, 0.5),
+  cost  = c(1, 5, 10)
+)
+
+# Create an empty results table
+results_rbf <- data.frame(
+  gamma = numeric(),
+  cost  = numeric(),
+  RMSE  = numeric(),
+  MAE   = numeric(),
+  R2    = numeric()
+)
+
+# Loop through all combinations
+for (i in 1:nrow(grid_rbf)) {
+  g <- grid_rbf$gamma[i]
+  k <- grid_rbf$cost[i]
+  
+  # Fit RBF SVR on training data
+  model <- svm(
+    pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+    data = train_data,
+    type = "eps-regression",
+    kernel = "radial",
+    gamma = g,
+    cost  = k
+  )
+  
+  # Predict on validation data
+  pred_valid <- predict(model, newdata = valid_data)
+  actuals <- valid_data$pm10_concentration
+  
+  # Compute metrics
+  rmse <- sqrt(mean((pred_valid - actuals)^2))
+  mae  <- mean(abs(pred_valid - actuals))
+  r2   <- 1 - sum((pred_valid - actuals)^2) / sum((actuals - mean(actuals))^2)
+  
+  # Store results
+  results_rbf <- rbind(results_rbf, data.frame(
+    gamma = g,
+    cost  = k,
+    RMSE  = rmse,
+    MAE   = mae,
+    R2    = r2
+  ))
+}
+
+# Arrange by RMSE ascending
+results_rbf <- results_rbf %>% arrange(RMSE)
+
+# Show the table
+print(results_rbf)
+
+# Best RMSE
+best_rmse <- results_rbf %>% slice_min(RMSE, n = 1)
+cat("Best RMSE:\n")
+print(best_rmse)
+
+# Best MAE
+best_mae <- results_rbf %>% slice_min(MAE, n = 1)
+cat("\nBest MAE:\n")
+print(best_mae)
+
+# Best R² (highest)
+best_r2 <- results_rbf %>% slice_max(R2, n = 1)
+cat("\nBest R²:\n")
+print(best_r2)
+
+```
+
+## Final RBF Kernel Model
+```{r}
+# Fit RBF SVR on training data (2010–2019) with best hyperparameters
+svr_rbf_model_best <- svm(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+  data = train_data,
+  type = "eps-regression",
+  kernel = "radial",
+  gamma = 0.1,  # best gamma from validation
+  cost = 1      # best cost from validation
+)
+
+# Predict PM10 for validation data (2020) using best model
+predictions_rbf_valid_best <- predict(svr_rbf_model_best, newdata = valid_data)
+
+# Static plot
+ggplot(valid_data, aes(x = pm10_concentration, y = predictions_rbf_valid_best)) +
+  geom_point(color = "darkgreen", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Actual PM10", y = "Predicted PM10",
+       title = "RBF SVR Predictions vs Actual (Validation 2020)") +
+  theme_minimal()
+
+# Interactive plot with tooltips
+p_rbf_valid_best <- ggplot(valid_data, aes(
+  x = pm10_concentration,
+  y = predictions_rbf_valid_best,
+  text = paste0("City: ", tooltip_city, "<br>Country: ", tooltip_country)
+)) +
+  geom_point(color = "darkgreen", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Actual PM10", y = "Predicted PM10",
+       title = "RBF SVR Predictions vs Actual (Validation 2020)") +
+  theme_minimal()
+
+ggplotly(p_rbf_valid_best, tooltip = "text")
+
+```
+
+## Model Evaluation 
+
+```{r}
+# Actual PM10 values for validation data
+actuals_rbf_valid_best <- valid_data$pm10_concentration
+
+# Root Mean Squared Error (RMSE)
+rmse_rbf_valid_best <- sqrt(mean((predictions_rbf_valid_best - actuals_rbf_valid_best)^2))
+
+# Mean Absolute Error (MAE)
+mae_rbf_valid_best <- mean(abs(predictions_rbf_valid_best - actuals_rbf_valid_best))
+
+# R-squared (proportion of variance explained)
+r2_rbf_valid_best <- 1 - sum((predictions_rbf_valid_best - actuals_rbf_valid_best)^2) / 
+                     sum((actuals_rbf_valid_best - mean(actuals_rbf_valid_best))^2)
+
+# Print all metrics
+cat("RMSE (RBF - Validation - Best):", rmse_rbf_valid_best, "\n")
+cat("MAE (RBF - Validation - Best):", mae_rbf_valid_best, "\n")
+cat("R² (RBF - Validation - Best):", r2_rbf_valid_best, "\n")
+
+
+```
 
