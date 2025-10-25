@@ -243,8 +243,8 @@ ridge_model$bestTune
 #so now predicting for 2021:
 test_data_2021$predicted_pm10_ridge <- predict(ridge_model, newdata = test_data_2021)
 ```
-We see that we get alpha=0, lambda=0.3061918 as our optimal ...
-This illustration demonstrates ... 
+We can see from our plot that the optimal regularisation parameter is 0.3061918, as beyond this point the RMSE CV increases with lambda (reg parameter), before that it behaves in the same way as our linear regression.
+
 
 ### LASSO
 ```{r Lasso}
@@ -256,10 +256,9 @@ lasso_model <- train(lm_formula_pm10,data = train_data,
 )
 lasso_model$bestTune
 test_data_2021$predicted_pm10_lasso <- predict(lasso_model, newdata = test_data_2021)
-
 ```
-Here we have alpha=1, lambda=0.04091224	
-Similar to Ridge, we can see that the RMSE increases as the regularisation paramter increases, with our best results being around ... 
+
+Similar to Ridge, we can see that the RMSE increases as the regularisation paramter increases, with our best results being around lambda=0.04091224, but again this doesn't provide very much difference from our original liner regression model. 
 
 
 ### Elastic 
@@ -273,8 +272,7 @@ method = "glmnet",trControl = trainControl(method = "cv", number = 5),
 elastic_model$bestTune
 test_data_2021$predicted_pm10_elastic <- predict(elastic_model, newdata = test_data_2021)
 ```
-From our alpha= 0.8888889	, lambda= 0.04091224	, ...
-As we can see from the Elastic Net plot, the optimal ... 
+By combining via elastic net, we see we use approx 88.89% lasso, and approximately 11.11% Ridge, providing a regularisation parameter of lambda= 0.04091224. 
 
 
 ### Comparison
@@ -288,13 +286,15 @@ comparison <- rbind(
 comparison
 ```
 
-Evidently, the values we can see are all are fairly similar, so evaluating the performance of each model is more nuanced than a cklearly defined optimal model.
+Evidently, the values we can see in our table are all are fairly similar, so evaluating the performance of each model is more nuanced than a clearly defined optimal model.
 
-We see that the Ridge method has the lowest RMSE of 5.044605, meaning ... 
-Regarding the R^2 value, we can see the Linear model has the highest value, suggesting that when we tested our model on our 2021 data, it explained 39.255% of our data. 
-Meanwhile the method with the smallest MAE is the Ridge method once again. 
+We see that the Ridge method has the lowest RMSE (Root Mean Squared Error) of 5.042155, meaning it produces the smallest average prediction error on the unseen 2021 data, making it potentially more accurate.
 
-Hence we can deduce that the Ridge regularisation linear regression is the best model for our regression. 
+Regarding the R^2 value, we can see the Linear model has the highest value, suggesting that when we tested our model on our 2021 data, it explained 39.255% of the variation in pm10 concentrations across the european cities.However, compared to Ridge the difference is very small.
+
+Meanwhile the method with the smallest MAE (Mean Absolute Error) is the Ridge method once again. Meaning we can deduce that overall this method deviates the least from our true pm10 concentrations.
+
+Hence we can conclude that the Ridge regularisation linear regression is the best model for our regression, although the differences are very small, it strikes the best balance between bias and variance whuch provides slightly better predictive accuracy. 
 
 ### Conclusions for Linear regression
 
