@@ -8,12 +8,12 @@ output: html_document
 # Introduction
 
 Throughout this project, we use data relevant to environmental health analysis, focusing on air pollution data from the World Health Organisation.
-The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. We test on pm10 concentration for 2021 for different cities in Europe, we will explain why we chose this throughout our intro.
-These predictions could be used to influence policy making to address issues of increasing pm10 over time, for example when trying to decide a threshold target similar to the Paris Climate agreement aiming to reduce temperature. 
-We will walk through how we cleaned and prepared our data, before examining which models we implemented for our predictive modelling and comparing their performance. We will also discuss the suitability of different performance measures such as RMSE for continuous predictions.
+The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. We test on pm10 concentration for 2021 for different cities in Europe (read the 'Introduction'01_Data_and_Introduction' for justification of this choice of prediction)
+These predictions could be used to influence policy making to address issues of increasing pm10 concentration levels over time, for example when trying to decide a threshold target similar to the Paris Climate agreement aiming to reduce temperature. 
+Having cleaned and prepared our data in the previous section, we will filter by European cities before examining which models we implemented for our predictive modelling and comparing their performance. We will also discuss the suitability of different performance measures such as RMSE for continuous predictions.
  
 ## Predictive modelling 
-Before we delve into the different models we used, we still have an issue with the missingness of our data. Although we have identified that European countries are more easily analysed since they have a sufficient amount of their data, some predictive models won't work with any missing data at all. 
+Before we delve into the different models we used, we still have an issue with the missingness of our data. Although we have identified that European cities are more easily analysed since they have a sufficient amount of their data, some predictive models won't work with any missing data at all. 
 Hence, we have decided to split our challenge into 2 main categories: 
 
 *predictive modelling with missingness* - here we simply carry out our predictive modelling by using techniques that will still function despite an NA count. 
@@ -39,4 +39,21 @@ rows_removed=europe_rows-nrow(clean_data_europe)
 prop= rows_removed/ europe_rows
 prop
 ```
-Hence we have removed 84.7% of our data, so we aknowledge that our models might not be as accurate.
+Hence we have removed 84.7% of our data, so we acknowledge that our models might not be as accurate.
+
+
+# Modelling with missingness 
+
+## Random forest
+
+## 
+
+
+# Modelling without missingness 
+
+## Linear regression (with regularisation)
+
+##Support Vector Machine 
+
+##
+
