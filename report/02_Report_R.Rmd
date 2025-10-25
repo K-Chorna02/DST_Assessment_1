@@ -1,0 +1,42 @@
+---
+title: "02- Report"
+author: "Minnie"
+date: "2025-10-25"
+output: html_document
+---
+
+# Introduction
+
+Throughout this project, we use data relevant to environmental health analysis, focusing on air pollution data from the World Health Organisation.
+The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. We test on pm10 concentration for 2021 for different cities in Europe, we will explain why we chose this throughout our intro.
+These predictions could be used to influence policy making to address issues of increasing pm10 over time, for example when trying to decide a threshold target similar to the Paris Climate agreement aiming to reduce temperature. 
+We will walk through how we cleaned and prepared our data, before examining which models we implemented for our predictive modelling and comparing their performance. We will also discuss the suitability of different performance measures such as RMSE for continuous predictions.
+ 
+## Predictive modelling 
+Before we delve into the different models we used, we still have an issue with the missingness of our data. Although we have identified that European countries are more easily analysed since they have a sufficient amount of their data, some predictive models won't work with any missing data at all. 
+Hence, we have decided to split our challenge into 2 main categories: 
+
+*predictive modelling with missingness* - here we simply carry out our predictive modelling by using techniques that will still function despite an NA count. 
+
+```{r europe clean data} 
+library(dplyr)
+europe_data= who_data %>%
+  filter(who_region=="4_Eur")%>%
+  select(-pm25_concentration)
+```
+
+*predictive modelling by removing NAs* - We remove the missing data all together, evidently this creates an over smoothing issue, but for the purpose of this task we will still be able to illustrate our results clearly. 
+
+```{r data set NAs removed} 
+clean_data_europe= na.omit(europe_data)
+```
+
+Note: we can see how many rows were removed, there is a key difference between how many NA values were removed and how many rows were removed, as some rows may contain multiple missing values. 
+```{r how many rows removed}
+library(dplyr)
+europe_rows=nrow(europe_data)
+rows_removed=europe_rows-nrow(clean_data_europe)
+prop= rows_removed/ europe_rows
+prop
+```
+Hence we have removed 84.7% of our data, so we aknowledge that our models might not be as accurate.

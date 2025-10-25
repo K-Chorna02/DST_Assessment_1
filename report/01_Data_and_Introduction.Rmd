@@ -40,9 +40,8 @@ Our dataset 'who_data.csv' can be found found in our report folder.
 
 ```{r load}
 # Load the data 
- # library(here)
-# data=read.csv(here("data", "who_data.csv"), stringsAsFactors = FALSE)
-data=read.csv("who_data.csv")
+library(here)
+data=read.csv("who_data.csv", stringsAsFactors = FALSE)
 ```
 We removed irrelevant columns from the original, such as 'data_source' and 'url_links'. We remove these in the processing section. 
 
@@ -139,3 +138,5 @@ We notice most countries are in Europe, so we filter by only European countries,
 
 ## Summary:
 We have preprocessed our data and decided to focus on countries in Europe using our EDA. Hence in our report we will be predicting pm10 concentration for 2021, for cities in Europe. 
+Turning your attention to our report, you will see how we choose which predictive models to use in our 'competition', and a careful evaluation of each one. 
+
