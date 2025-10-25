@@ -94,6 +94,8 @@ who_data[num_cols] =lapply(who_data[num_cols], as.numeric) # set the data as num
 
 who_data$type_of_stations =as.character(who_data$type_of_stations)
 who_data$who_region =as.factor(who_data$who_region)
+#and finally, we can see Turkey isn't defined properly in the dataset, so we add 
+who_data$country_name[who_data$iso3 == "TUR"] <- "Turkey"
 ```
 
 ## Missingness
