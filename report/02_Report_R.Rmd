@@ -43,6 +43,10 @@ prop
 Hence we have removed 84.7% of our data, so we acknowledge that our models might not be as accurate.
 
 ## Performance metric 
+Quantify and justify your performance metric:
+Why RMSE? Would MAE or adjusted R² better capture real-world generalisability?
+Mention how your approach could generalise beyond Europe.
+
 
 
 # Modelling with missingness 
@@ -174,7 +178,7 @@ As we can see from the model fit:
 
 *Residuals vs leverage:* We see most of our data is clustered around the left hand side of the graph, suggesting we have a left skew. There appear to be a few points of high leverage. 
 
-Hence, we haven't fitted the optimal model since our assumptions have been violated. 
+Hence, we haven't fitted the optimal model since our assumptions have been violated. Because of this, we expect other models to perform better in our 'artificial competition'.
 
 Now using our model we can use our true pm10 data for 2021 and test: 
 ```{r predictions}
@@ -187,7 +191,7 @@ results_2021 <- data.frame(
 ```
 
 ## Model visualisation
-We visualise our results as follows: 
+We visualise the relationship between actual pm10 values and predicted pm10 values for European cities in 2021, we have coloured the cities by their corresponding countries: 
 
 ```{r visual}
 library(ggplot2)
@@ -204,18 +208,23 @@ ggplot(results_2021, aes(
 
 ```
 
-Clearly we can see most of our data is clustered around the lower left of our data set, with the exception of a few outliers such as France, Israel, Ireland and Italy, removing these would increase the model performance, however this would also introduce a bias to our model. Our lines indicate ..,
+In our figure we have included the 1:1 reference line (perfect prediction line) in black, and our regression line in red.
+
+We can see from our figure that most of our data is clustered around the lower left of our data set, suggesting many of our pm10 pollution levels are lower in value. There are many points evenly distributed around the 1:1 reference line, suggesting a fairly good model fit, with the exception of a few outliers in cities located in France, Israel, Ireland and Italy. These may be due to political or meteorological conditions that we haven't considered in our model. We could consider removing these city outlier points, as it would increase the model performance, however this would also introduce a bias to our model. We also note these outlier points are for higher pollution levels, so removing these would lead to a bias towards lower pm10 concentrations.
+
+Overall our model appears to provide a reasonably good prediction for a variety of cities in Europe, however with outliers this has slightly skewed the prediction accuracy of our model for higher level pm10 concentrations. 
 
 
 ## Extending our linear regression by regularising
 To improve our model, we build upon the ideas of linear regression by regularising. 
 There are a variety of ways of doing this, we focus on the following methods: 
 
-- Ridge: 
+- Ridge: Reduces the size of all of the coefficients, but keeps them in the model. We have correlation between some predictors so this method should smooth out any instabilities this causes.
 
-- Lasso: 
+- Lasso: This method is similar to Ridge, but can shrink some coefficients all the way to zero, automatically removing less important variables. 
 
-- Elastic (combines Ridge and Lasso): 
+- Elastic (combines Ridge and Lasso): It keeps Ridge’s stability and LASSO’s ability to select variables, balancing the two through a mixing parameter 
+$\alpha$
 
 ### Ridge
 ```{r ridge}
@@ -282,7 +291,7 @@ Meanwhile the method with the smallest MAE is the Ridge method once again.
 
 Hence we can deduce that the Ridge regularisation linear regression is the best model for our regression. 
 
-### Conclusions
+### Conclusions for Linear regression
 
 To conclude our section on linear regression, we found our initial linear regression model wasn't too accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using lasso and ridge methods. 
 We also used transforms of variables, such as log population and cubic terms for the no2 concentration. 
