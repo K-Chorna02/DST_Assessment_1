@@ -1,0 +1,13 @@
+---
+title: "03_Conclusions"
+author: "Minnie"
+date: "2025-10-25"
+output: html_document
+---
+
+## Performance metric
+Why we chose a specific performance metric Quantify and justify your performance metric:
+Why RMSE? Would MAE or adjusted R² better capture real-world generalisability?
+
+#Conclusions
+
