@@ -53,7 +53,7 @@ Mention how your approach could generalise beyond Europe.
 
 ## Random forest
 
-## 
+## Belle model on RF
 
 
 # Modelling without missingness 
@@ -130,7 +130,6 @@ Now we use cross validation to train our linear regression model:
 modelcv=train(lm_formula_pm10, data = train_data, method = "lm" ,trControl=trainControl(method = "cv",number=10))
 
 summary(modelcv$finalModel)
-modelcv$results
 ```
 
 
@@ -157,7 +156,13 @@ For the linear term, we see that for every increase by 1 unit of no2, pm10 is ex
 -   **Longitude X Latitude** $\hat{\beta}_{10}=0.01093$ This is more useful as longitude and latitude are strongly related. This has a very small p-value so we can infer that the interaction term is a statistically significant predictor. This helps us interpret spatially and geographically where pm10 concentrations are expected to be higher/lower.
 
 ## Model fit
-We saw from our model that the cross-validated linear regression achieved an R^2 of 0.4908 on the training set. This means that the model explains 49.08% of the variance in pm10 concentrations across European cities. 
+
+```{r eval results}
+modelcv$results
+```
+
+We saw from our model that the cross-validated linear regression achieved an R^2 of 0.4908 on the training set. This means that the model explains 49.08% of the variance in pm10 concentrations across European cities.
+
 From the model summary we saw that most predictors were statistically significant, demonstrating that variables such as no2 and spatial coordinates contribute to the explanation of pm10 concentrations. The only exception being population, which showed no significant effect. However log population showed to be a statistically significant variable, so by transforing we were able to show population density does contribute to pm10 concentration. 
 
 ## Model assumptions
@@ -293,10 +298,11 @@ Hence we can deduce that the Ridge regularisation linear regression is the best 
 
 ### Conclusions for Linear regression
 
-To conclude our section on linear regression, we found our initial linear regression model wasn't too accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using lasso and ridge methods. 
-We also used transforms of variables, such as log population and cubic terms for the no2 concentration. 
+To conclude our section on linear regression, we found our initial linear regression model wasn't too accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using ridge, lasso and elastic net. Although these didn't provide too much improvement (due to the fact there was less multicolinearity between variables than we anticipated), the ridge method appeared to provide the best results to optimise our linear regresion model. 
 
-Significant predictors we found were year (which is to be expected given the negative correlation of our pm10 concentrations over time), ... , ... 
+We also used transforms of variables, such as log population and polynomial terms for both the no2 concentration and year variables. This helped to capture the non-linearity aspects of our model. 
+
+Significant predictors we found were year (which is to be expected given the negative correlation of our pm10 concentrations over time), no2 concentrations spatial locations and log population. 
 
 To amend this and further our analysis, we would need to consider additional explanatory variables, these could include: 
 
@@ -304,8 +310,11 @@ To amend this and further our analysis, we would need to consider additional exp
 2. Industrial emissions. 
 3. Traffic density. 
 
+Including these variables could help to address the assumption violations we found in our model, potentially increasing the explanatory power of the model and providing us with a better understanding of the factors influencing the pm10 concentration levels for cities in Europe.
 
-##Support Vector Machine 
 
-##
+
+## Support Vector Machine 
+
+## (Jemma model)
 
