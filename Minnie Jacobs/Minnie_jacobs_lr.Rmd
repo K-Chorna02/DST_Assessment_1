@@ -87,7 +87,8 @@ To assess the performance of our model and ensure our results aren't biased, we 
 
 The training set includes all data from our cleaned Europe data set for 2013-2020, we will use this to perform our k-fold CV. 
 Our test set is the data we obtained for 2021 for European cities, which we use for out of sample validation later. 
-This means we can effectively assess how well the model generalises to unseen future data, as we'd expect in a real world scenario, demonstrating its robustness. 
+
+This means we can effectively assess how well the model generalises to unseen future data, as we'd expect in a real world scenario, demonstrating its robustness. However, our model may under perform for non-European or after 2021 data due to changes we may not have observed in this historical data, other countries also had a large amount of missing data so it is difficult to identify if they had similar trends.
 
 ```{r model}
 #splitting into train/test
