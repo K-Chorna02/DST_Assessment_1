@@ -35,123 +35,112 @@ if(!require("caret")) install.packages("caret")
 
 # Section 1: Linear regression models
 
-The first model we explored for prediction was the commonly seen linear regression. From previous EDA that we carried out in Assessment 0, we found that after using the openair package for time series of pm10 concentration for different cities in Europe, there appeared to be a somewhat linear trend- suggesting regression should be an appropriate model.
+In this section, we use linear regression to model pm10 concentration across European cities using several explanatory factors such as no2 concentration, population, and geographic features such as longitude and latitude. 
+We fit models using linear regression and extend this to Ridge, LASSO, and Elastic Net regression to address potential multicollinearity and improve predictive performance. Model performance is evaluated using k-fold cross-validation on training data (2013–2020) followed by out of sample validation on data from 2021 to assess tthe generalisation.
 
-Linear regression cannot work if we have missing values, so for this we use our clean_europe_data. Our goal is to predict the pm10 concentration for 2021 (2022 contains insufficient data for testing) using data from different cities in Europe.
+From previous EDA that we carried out in Assessment 0, we found that using the 'openair' package showed a negative linear trend between pm10 concentration and time, suggesting that linear regression is an appropriate modelling approach. 
 
-## Literary review
+Linear regression cannot work if we have missing values, so for this we use our clean_europe_data.
 
- Explicitly state the prediction goal: e.g., “forecasting PM₁₀ levels for 2021 across European cities from NO₂ and population metrics.”
-Quantify and justify your performance metric:
-Why RMSE? Would MAE or adjusted R² better capture real-world generalisability?
-Compare to a naïve baseline (e.g., “PM₁₀₍₂₀₂₁₎ ≈ PM₁₀₍₂₀₂₀₎”) to show improvement is meaningful.
-Discuss train/test philosophy: why you left out 2021, and how this mimics “future data” prediction.
-Mention how your approach could generalise beyond Europe.
-
+## Literature review
+I carried out a small literature review to explore which variables were significant in these analyses. My research found that ...
 
 
 ## Model equation
-We decided to include the following covariates in our model:
+Following our EDA in assessment 0, we decided to include the following covariates in our model as they demonstrated significance in the prediction of pm10 concentration levels:
 
-- **year** (to capture time effects) - numeric, discrete, 2013-2021 once cleaned
+- **year** (temporal, numeric, discrete )- this variable is essential in capturing trends in pm10 pollutant levels over time. Once we've cleaned our data we have the uears 2013-2021, we train our model on previous data (2013-2020) and then use out-of-sample testing on 2021 to assess our model's fit.
 
-- **no2_concentration** we found this was strongly correlated with pm10_concentration so may contribute to prediction.
+- **no2_concentration** (environmental)- we found this was a key environmental predictor given it is strongly correlated with pm10_concentration, typically demonstrating an association between the pollutant source.
+*We note that this doesn't have a strictly linear relationship so we include non-linear terms in our model to capture this.*
 
--  **country_name** - categorical (we focused on european countries).
+- **latitude/longitude** (spatial)- important indicators of location, which help us to infer regional differences in pm10 pollution patterns. 
+*These are strongly related so we consider their interaction term as a key variable in our linear model. *
 
-- **latitude/longitude** - could be interesting exploration of location.
-We remove the coverage variables, as these don't directly contribute to prediction.
+- **population/log-population** (demographic, numeric, continuous)-  We include this as an indicator of city size. 
+*Due to its large range and skew, we found using a log transform of this improved our results, so this is also included in our model. *
 
-- **population/log-population**- We include the **population** variable, (an indicator of city size), numeric, continuous, but due to its large range, we found using a log transform of this improved our results, so this is also included in our model. 
+-  **country_name** - (categorical), we have filtered by European countries as these had the highest amount of data, making our results more interpretable. While we don't use it directly in our model, we will use it in visualisations of our results.
 
--**country_name**- we include this as a ...variable .. as we can use this to 
-
+Coverage variables (pm10_tempcov, no2_tempcov) were excluded since they are related to data completeness rather than directly contributing to prediction.
 
 So applying this we refine our dataset further: 
 ```{r further removal}
-clean_data_europe_rem= clean_data_europe %>%
+clean_data_europe_reg= clean_data_europe %>% 
 select(-iso3, -pm10_tempcov, -pm25_tempcov,-who_region,-no2_tempcov, -type_of_stations)%>%
   filter(year != 2022)%>% #EDA showed insufficient data for testing for 2022
   mutate(log_population = log(population)) %>% # EDA showed a transform was a better predictor of results
   na.omit(europe_data) #lin regression can't have missing data
 ```
 
-We explored linear regression models for pm10 concentration in our EDA from Assessment 0, and found that we could improve our model by exploring non-linear relationships. At first we explored models such as this : 
+Since we have identified our significant covariates, and building upon our EDA by exploring incorporating non-linear relationships, we can give our model using the following equation: 
 
 $$
-\text{PM}_{10,i} = \beta_0 + \beta_1 \cdot \text{Year}_i+\beta_2 \cdot \text{log_population}_i + \beta_3 \cdot \text{longitude}_i + \beta_4 \cdot \text{latitude}_i+ \text{no2_concentration}+ \varepsilon_i,
+\text{PM}_{10,i} = \beta_0 + \beta_1 \cdot \text{Year}_i+\beta_2 \cdot \text{Year}_i^2 +\beta_3 \cdot\text{no2_concentration}+\beta_4 \cdot\text{no2_concentration}^2+\beta_5 \cdot\text{no2_concentration}^3+\beta_6 \cdot \text{population}+\beta_7 \cdot \text{log_population}+\beta_8 \cdot \text{longitude}+\beta_9 \cdot \text{latitude}+\beta_{10} \cdot \text{longitude}* \text{latitude}_i+ \varepsilon_i,
 $$
 where $\varepsilon_i \sim N(0,\sigma^2)$.
 
-But we will focus on the following model: 
-$$
-\text{PM}_{10,i} = \beta_0 + \beta_1 \cdot \text{Year}_i+\beta_2 \cdot \text{Year}_i^2+\beta_3 \cdot \text{population}+\beta_4 \cdot \text{log_population} +\beta_5\text{no2_concentration}+ \beta_6\text{no2_concentration}^2+\beta_7\text{no2_concentration}^3+\beta_8 \cdot \text{longitude}* \text{latitude}_i+ + \varepsilon_i,
-$$
-Our choices were made by combining EDA with: 
-- Year appears to 
-- no_2 concentration doesn't appear to have a particularly linear relationship, so by ... 
-- log_population transform fits our data better since population has large ranges 
-- longitude and latitude are strongly correlated so we ... 
 
+## Test/train
 
-Next split our model into 2 subsets, the training dataset that includes all data from our cleaned Europe data set but without our values for 2021 (since this is what our model tries to predict), and the test set which we use for out of sample analysis later. 
+To assess the performance of our model and ensure our results aren't biased, we must first split our data into two subsets: a test set and a training set. This will avoid any temporal leakage and isolate our true values for 2021, ensuring that the model does not have access to information from future years during training.
+
+The training set includes all data from our cleaned Europe data set for 2013-2020, we will use this to perform our k-fold CV. 
+Our test set is the data we obtained for 2021 for European cities, which we use for out of sample validation later. 
+
+This means we can effectively assess how well the model generalises to unseen future data, as we'd expect in a real world scenario, demonstrating its robustness. However, our model may under perform for non-European or after 2021 data due to changes we may not have observed in this historical data, other countries also had a large amount of missing data so it is difficult to identify if they had similar trends.
 
 ```{r model}
+#splitting into train/test
 library(caret) #We use the package 'caret' that we saw in the workshop 2.3. 
 set.seed(2)
-train_data=subset(clean_data_europe_rem, year != 2021)
-test_data_2021=subset(clean_data_europe_rem, year == 2021)
+train_data=subset(clean_data_europe_reg, year != 2021)
+test_data_2021=subset(clean_data_europe_reg, year == 2021)
 
 #using our formula aforementioned:
-lm_formula_pm10=pm10_concentration ~ poly(year, 2)+no2_concentration+poly(no2_concentration,3) +population+log_population+ latitude*longitude
+lm_formula_pm10=pm10_concentration ~ poly(year, 2)+poly(no2_concentration,3) +population+log_population+ longitude+latitude+ latitude*longitude
 ```
 
-Now we use cross validation to train our linear regression model
+Now we use cross validation to train our linear regression model:
 ```{r cv}
-#now using cv: (we use 10 folds)
-modelcv=train(lm_formula_pm10, data = train_data, method = "lm" ,trControl=trainControl(method = "cv",number=10),preProcess = c("center","scale"))
+#now using cv: (we use 10 folds, as we don't have too much data, but it reduces bias)
+modelcv=train(lm_formula_pm10, data = train_data, method = "lm" ,trControl=trainControl(method = "cv",number=10))
 
 summary(modelcv$finalModel)
-modelcv$results
 ```
 
 
 The estimated coefficients can be interpreted as follows:
 
--   **Intercept**: $\hat{\beta}_0 = 908.668419$\
-    This represents the expected ${PM}_{10}$ concentration when
-    all other variables are zero.
-    Since this situation is not realistic, the intercept is not of
-    direct interest.\
+-   **Intercept**: $\hat{\beta}_0 = 40.91$\
+    This represents the expected pm10 concentration for Europe when all other variables are zero. Since this situation is not realistic, the intercept is not of direct interest.
     
-  -**Year**: $\hat{\beta}_1 = -0.435221$ \
-    Holding other variables constant, by increasing the year by 1, we expect a decrease of 0.435221 per unit of pm_10 concentration. As we saw from our EDA, pm10 concentration appeared to have a negative correlation with year. This variable is very statistically significant.\
+-   **year**: $\hat{\beta}_1 = -64.95$ , $\hat{\beta}_2 = -10.31$, we notice both coefficients of year are negative , suggesting a decrease in pm10 concentrations over time. In the linear term, we have that by holding other variables constant, by increasing the year by 1, we expect a decrease of 64.95 per unit of pm_10 concentration. As we saw from our EDA, pm10 concentration appeared to have a negative correlation with year, so this supports our negative relationship (which we could interpret as being perhap due to policy changes). This variable is very statistically significant.
+The quadratic term still indicated a decline over time, however this was smaller (10.31), suggesting the rate of decline has decreased in more recent years. This variable did not appear to be statistically significant, but still had a very low p-value.
 
--   **No2_concentration**: $\hat{\beta}_2 =0.231806$. For every increase by 1 unit of No2, pm10 is expected to increase by 0.231806 units, assuming the other factors remain unchanged. We see that this has a very small p-value, suggesting it is statistically significant.\
+-   **no2_concentration**: $\hat{\beta}_3 =138.5,\hat{\beta}_4 =163.7,,\hat{\beta}_5 =216.6$. 
+All of these coefficients were positive and statistically significant, demonstrating a strong non-linear relationship between pollutant concentrations. 
+For the linear term, we see that for every increase by 1 unit of no2, pm10 is expected to increase by 138.5 units, assuming the other factors remain unchanged. Similarly for the quadratic and cubic terms, we see a large increase in pm10 is expected from every unit increase in no2 concentrations. This could be due to the fact no2 and pm10 may have the same pollutant sources (e.g traffic). 
+    
+-   **population**: $\hat{\beta}_6 =-2.935 \cdot 10^{-8} $. This is negative but contributes to a very small change, we also see a very high p-value suggesting population is not statistically significant in the prediction of pm10 concentration.
 
--   **log_population**: $\hat{\beta}_3 =0.237393$ \
-    Holding other variables constant, additional increase in the transformed population by 1 unit is associated with an increase of about $0.237393$ units in ${PM}_{10}$.This suggests a slight positive trend in pollution and pm10 concentration which would make sense given a higher population ... 
-    Though it has the largest p-value of our variables, the effect is highly statistically significant, showing that log_population size is related to pm10 pollution levels. \
-
-  -**Latitude**: $\hat{\beta}_4=-0.414233$
+-   **log_population**: $\hat{\beta}_7 =0.385$ \ This is statistically significant to prediction of pm10 concentration. Holding other variables constant, additional increase in the transformed population by 1 unit is associated with an increase of about $0.385$ units in pm10 concentration. This can be interpreted as more densely populated cities tend to have higher levels of pm10 concentrations, which we would expect.
+    
+-   **Longitude**: $\hat{\beta}_8 =-0.0856$ This small negative value is statistically significant to our model. Interpretation is more difficult spatially, but a negative longitude variable suggests eastern European cities contribute more to pm10 concentrations.
   
-  -**Longitude**: $\hat{\beta}_5 =0.326300$.  \
-    
-The model suggests that PM₁₀ concentrations are mainly explained by NO₂ levels, geographic location, and time.
-NO₂ has a strong positive relationship with PM₁₀, indicating shared pollution sources.
-Over the years (2013–2020), PM₁₀ concentrations have generally decreased, especially in northern and western European cities.
-Population size shows a mild positive effect, possibly reflecting urban density, though it’s less statistically robust.
+-   **Latitude**: $\hat{\beta}_9=-5.61$ This is more statistically significant than longitude and shows that pm10 concentrations decrease as latitude increases, this corresponds to northern cities experiencing less pm10 concentration. 
+   
+-   **Longitude X Latitude** $\hat{\beta}_{10}=0.01093$ This is more useful as longitude and latitude are strongly related. This has a very small p-value so we can infer that the interaction term is a statistically significant predictor. This helps us interpret spatially and geographically where pm10 concentrations are expected to be higher/lower.
 
 ## Model fit
 
-```{r compare}
-R2_train= R2(pred = predict(modelcv, train_data),
-               obs = train_data$pm10_concentration)
-cat("Model cv performance:", round(R2_train, 3), "\n")
+```{r fit eval}
+modelcv$results
 ```
 
-The cross-validated linear regression achieved an R^2 of 0.491 on the training set. This means that the model explains 49.1% of the data. 
+We saw from our model that the cross-validated linear regression achieved an R^2 of 0.4908 on the training set. This means that the model explains 49.08% of the variance in pm10 concentrations across European cities.
 
+From the model summary we saw that most predictors were statistically significant, demonstrating that variables such as no2 and spatial coordinates contribute to the explanation of pm10 concentrations. The only exception being population, which showed no significant effect. However log population showed to be a statistically significant variable, so by transforing we were able to show population density does contribute to pm10 concentration. 
 
 ## Model assumptions
 
@@ -160,68 +149,71 @@ We test our model's fit on the linear regression assumptions:
 par(mfrow = c(2, 2))
 plot(modelcv$finalModel)
 ```
-As we can see from the :
+
+As we can see from the model fit:
 
 *Residuals vs fitted :* The residuals are fairly randomly scattered, but with a curved, quadratic distribution suggesting our assumption for linearity doesn't entirely hold. 
 
-*Q-Q residuals:* The residuals mostly lie in a diagonal line apart from at the tails, but overall we can see the assumptoin of normality holds.  apart from at the tailes where 
+*Q-Q residuals:* The residuals mostly lie in a diagonal line apart from at the tails, where we see extreme values that are not explained by the model, removing outliers could improve the performance of our model.
 
-*Scale-location:* The residuals are randomly scattered around the line, so we can assume that the constant variance assumption is satisfied. 
+*Scale-location:* The residuals are randomly scattered around the line, but with a curvature heavily dropping around 15 on the fitted values, the constant variance assumption doesn't fully hold.
 
-*Residuals vs leverage:* We see most of our data is clustered around the left hand side of the graph, suggesting we have a left skew. There appear to be no extreme outliers. 
+*Residuals vs leverage:* We see most of our data is clustered around the left hand side of the graph, suggesting we have a left skew. There appear to be a few points of high leverage. 
 
+Hence, we haven't fitted the optimal model since our assumptions have been violated. 
 
 Now using our model we can use our true pm10 data for 2021 and test: 
 ```{r predictions}
-
-
 test_data_2021$predicted_pm10 <- predict(modelcv, newdata = test_data_2021)
 results_2021 <- data.frame(
   city = test_data_2021$city,
   country = test_data_2021$country_name,
   actual_pm10 = test_data_2021$pm10_concentration,
-  predicted_pm10 = test_data_2021$predicted_pm10
-)
-
+  predicted_pm10 = test_data_2021$predicted_pm10)
 ```
 
-This means that ...
-
 ## Model visualisation
-We visualise our results as follows: 
+We visualise the relationship between actual pm10 values and predicted pm10 values for European cities in 2021, we have coloured the cities by their corresponding countries: 
+
 ```{r visual}
 library(ggplot2)
 ggplot(results_2021, aes(
   x = actual_pm10,y = predicted_pm10,color = country)) +
   geom_point(alpha = 0.8, size = 2) +
-  geom_abline(intercept = 0, slope = 1, color = "black", linetype = "dashed") +geom_smooth(method = "lm", se = FALSE, color = "darkred", linetype = "dotted")+
-  labs(title = "Actual vs Predicted PM10 concentrations for cities in Europe (for 2021)",
-    x = "Actual PM10 concentration",
-    y = "Predicted PM10 concentration",
+  geom_abline(intercept = 0, slope = 1, color = "black") +geom_smooth(method = "lm", se = FALSE, color = "red")+
+  labs(title = "Actual vs Predicted PM10 concentrations for cities in Europe (for 2021)", 
+    x = "Actual PM10 concentration",y = "Predicted PM10 concentration",
     color = "Country"
   ) +
   theme_minimal(base_size = 10) +
-  theme(legend.position = "right",
-    plot.title = element_text(face = "bold"))
+  theme(legend.position = "right",plot.title = element_text(face = "bold"))
 
 ```
-Clearly we can see most of our data is clustered around the lower left of our data set, with the excpetion of a few outliers such as France, Israel, Ireland and Italy, removing these would increase the model performance, however this would also introduce a bias to our model.
+
+In our figure we have included the 1:1 reference line (perfect prediction line) in black, and our regression line in red.
+
+We can see from our figure that most of our data is clustered around the lower left of our data set, suggesting many of our pm10 pollution levels are lower in value. There are many points evenly distributed around the 1:1 reference line, suggesting a fairly good model fit, with the exception of a few outliers in cities located in France, Israel, Ireland and Italy. These may be due to political or meteorological conditions that we haven't considered in our model. We could consider removing these city outlier points, as it would increase the model performance, however this would also introduce a bias to our model. We also note these outlier points are for higher pollution levels, so removing these would lead to a bias towards lower pm10 concentrations.
+
+Overall our model appears to provide a reasonably good prediction for a variety of cities in Europe, however with outliers this has slightly skewed the prediction accuracy of our model for higher level pm10 concentrations. 
 
 
 ## Extending our linear regression by regularising
 To improve our model, we build upon the ideas of linear regression by regularising. 
-There are a variety of ways of doing this, we focus on the following methods: - Ridge 
+There are a variety of ways of doing this, we focus on the following methods: 
 
--Lasso
+- Ridge: Reduces the size of all of the coefficients, but keeps them in the model. We have correlation between some predictors so this method should smooth out any instabilities this causes. ($\alpha=0$)
 
--Elastic (combines Ridge and Lasso)
+- Lasso: This method is similar to Ridge, but can shrink some coefficients all the way to zero, automatically removing less important variables. $\alpha=1$
+
+- Elastic (combines Ridge and Lasso): It keeps Ridge’s stability and LASSO’s ability to select variables, balancing the two through a mixing parameter 
+$\alpha$
 
 ### Ridge
 ```{r ridge}
 set.seed(2)
 #first we try ridge regression
 ridge_model <- train(lm_formula_pm10,data = train_data,method = "glmnet",
-  trControl = trainControl(method = "cv", number = 5),preProcess = c("center","scale"),
+  trControl = trainControl(method = "cv", number = 5),
   tuneGrid = expand.grid(alpha = 0,lambda = seq(0.0001, 1, length = 50))
 )
 ridge_model$bestTune
@@ -230,14 +222,16 @@ plot(ridge_model)
 #so now predicting for 2021:
 test_data_2021$predicted_pm10_ridge <- predict(ridge_model, newdata = test_data_2021)
 ```
-This illustration demonstrates ... 
+
+We can see from our plot that the optimal regularisation parameter is 0.3061918, as beyond this point the RMSE CV increases with lambda (reg parameter), before that it behaves in the same way as our linear regression.
+
 
 ### LASSO
 ```{r Lasso}
 set.seed(2)
 
 lasso_model <- train(lm_formula_pm10,data = train_data,
-  method = "glmnet",trControl = trainControl(method = "cv", number = 5),preProcess = c("center","scale"),
+  method = "glmnet",trControl = trainControl(method = "cv", number = 5),
   tuneGrid = expand.grid(alpha = 1,lambda = seq(0.0001, 1, length = 50))
 )
 lasso_model$bestTune
@@ -245,7 +239,8 @@ plot(lasso_model)
 test_data_2021$predicted_pm10_lasso <- predict(lasso_model, newdata = test_data_2021)
 
 ```
-Similar to Ridge, we can see that the RMSE increases as the regularisation paramter increases, with our best results being around ... 
+
+Similar to Ridge, we can see that the RMSE increases as the regularisation paramter increases, with our best results being around lambda=0.04091224, but again this doesn't provide very much difference from our original liner regression model. 
 
 
 ### Elastic 
@@ -253,18 +248,18 @@ Similar to Ridge, we can see that the RMSE increases as the regularisation param
 set.seed(2)
 
 elastic_model <- train(lm_formula_pm10,data = train_data,
-method = "glmnet",trControl = trainControl(method = "cv", number = 5),preProcess = c("center","scale"),
+method = "glmnet",trControl = trainControl(method = "cv", number = 5),
   tuneGrid = expand.grid(alpha = seq(0, 1, length = 10),lambda = seq(0.0001, 1, length = 50)))
 
 elastic_model$bestTune
 plot(elastic_model)
 
 test_data_2021$predicted_pm10_elastic <- predict(elastic_model, newdata = test_data_2021)
-
 ```
+By combining via elastic net, we see we use approx 88.89% lasso, and approximately 11.11% Ridge, providing a regularisation parameter of lambda= 0.04091224. 
+
 
 ### Comparison
-
 ```{r comparison}
 comparison <- rbind(
   Linear = postResample(results_2021$predicted_pm10, results_2021$actual_pm10),
@@ -273,14 +268,25 @@ comparison <- rbind(
   Elastic=postResample(test_data_2021$predicted_pm10_elastic, test_data_2021$pm10_concentration)
 )
 comparison
-
 ```
+Evidently, the values we can see in our table are all are fairly similar, so evaluating the performance of each model is more nuanced than a clearly defined optimal model.
+
+We see that the Ridge method has the lowest RMSE (Root Mean Squared Error) of 5.042155, meaning it produces the smallest average prediction error on the unseen 2021 data, making it potentially more accurate.
+
+Regarding the R^2 value, we can see the Linear model has the highest value, suggesting that when we tested our model on our 2021 data, it explained 39.255% of the variation in pm10 concentrations across the european cities.However, compared to Ridge the difference is very small.
+
+Meanwhile the method with the smallest MAE (Mean Absolute Error) is the Ridge method once again. Meaning we can deduce that overall this method deviates the least from our true pm10 concentrations.
+
+Hence we can conclude that the Ridge regularisation linear regression is the best model for our regression, although the differences are very small, it strikes the best balance between bias and variance whuch provides slightly better predictive accuracy. 
+
 
 ## Conclusions
-To conclude our section on linear regression, we found our initial linear regression model wasn't too accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using lasso and ridge methods. 
-We also used transforms of variables, such as log population and cubic terms for the no2 concentration. 
 
-Significant predictors we found were year (which is to be expected given the negative correlation of our pm10 concentrations over time), ... , ... 
+To conclude our section on linear regression, we found our initial linear regression model wasn't too accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using ridge, lasso and elastic net. Although these didn't provide too much improvement (due to the fact there was less multicolinearity between variables than we anticipated), the ridge method appeared to provide the best results to optimise our linear regresion model. 
+
+We also used transforms of variables, such as log population and polynomial terms for both the no2 concentration and year variables. This helped to capture the non-linearity aspects of our model. 
+
+Significant predictors we found were year (which is to be expected given the negative correlation of our pm10 concentrations over time), no2 concentrations spatial locations and log population. 
 
 To amend this and further our analysis, we would need to consider additional explanatory variables, these could include: 
 
@@ -288,4 +294,5 @@ To amend this and further our analysis, we would need to consider additional exp
 2. Industrial emissions. 
 3. Traffic density. 
 
+Including these variables could help to address the assumption violations we found in our model, potentially increasing the explanatory power of the model and providing us with a better understanding of the factors influencing the pm10 concentration levels for cities in Europe.
 
