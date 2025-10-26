@@ -36,15 +36,11 @@ if(!require("caret")) install.packages("caret")
 # Section 1: Linear regression models
 
 In this section, we use linear regression to model pm10 concentration across European cities using several explanatory factors such as no2 concentration, population, and geographic features such as longitude and latitude. 
-We fit models using linear regression and extend this to Ridge, LASSO, and Elastic Net regression to address potential multicollinearity and improve predictive performance. Model performance is evaluated using k-fold cross-validation on training data (2013–2020) followed by out of sample validation on data from 2021 to assess tthe generalisation.
+We then extend our regression exploration to Ridge, LASSO, and Elastic Net to address potential multicollinearity and improve predictive performance. We evaluate our model's performance using k-fold cross-validation on training data (2013–2020) followed by out of sample validation on data from 2021 to assess the generalisation of our model.
 
 From previous EDA that we carried out in Assessment 0, we found that using the 'openair' package showed a negative linear trend between pm10 concentration and time, suggesting that linear regression is an appropriate modelling approach. 
 
 Linear regression cannot work if we have missing values, so for this we use our clean_europe_data.
-
-## Literature review
-I carried out a small literature review to explore which variables were significant in these analyses. My research found that ...
-
 
 ## Model equation
 Following our EDA in assessment 0, we decided to include the following covariates in our model as they demonstrated significance in the prediction of pm10 concentration levels:
@@ -88,7 +84,7 @@ To assess the performance of our model and ensure our results aren't biased, we 
 The training set includes all data from our cleaned Europe data set for 2013-2020, we will use this to perform our k-fold CV. 
 Our test set is the data we obtained for 2021 for European cities, which we use for out of sample validation later. 
 
-This means we can effectively assess how well the model generalises to unseen future data, as we'd expect in a real world scenario, demonstrating its robustness. However, our model may under perform for non-European or after 2021 data due to changes we may not have observed in this historical data, other countries also had a large amount of missing data so it is difficult to identify if they had similar trends.
+This means we can effectively assess how well the model generalises to unseen future data, as we'd expect in a real world scenario, demonstrating its robustness. However, our model may under perform for non-European or post-2021 data due to changes we may not have observed in this historical data. 
 
 ```{r model}
 #splitting into train/test
@@ -198,8 +194,16 @@ Overall our model appears to provide a reasonably good prediction for a variety 
 
 
 ## Extending our linear regression by regularising
-To improve our model, we build upon the ideas of linear regression by regularising. 
+To improve our model, we build upon the ideas of linear regression by regularising, this penalises large coefficients, providing adjustments for multicollinearity.
+It works by adding the second term in our linear regression:
+
+$$
+\min_{\boldsymbol{\beta}} \sum_{i=1}^{n} (y_i - \mathbf{x}_i^\top \boldsymbol{\beta})^2
++ \lambda \left[(1-\alpha)\sum_{j}\beta_j^2 + \alpha\sum_{j}|\beta_j|\right]
+$$
+
 There are a variety of ways of doing this, we focus on the following methods: 
+
 
 - Ridge: Reduces the size of all of the coefficients, but keeps them in the model. We have correlation between some predictors so this method should smooth out any instabilities this causes. ($\alpha=0$)
 
@@ -282,7 +286,7 @@ Hence we can conclude that the Ridge regularisation linear regression is the bes
 
 ## Conclusions
 
-To conclude our section on linear regression, we found our initial linear regression model wasn't too accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using ridge, lasso and elastic net. Although these didn't provide too much improvement (due to the fact there was less multicolinearity between variables than we anticipated), the ridge method appeared to provide the best results to optimise our linear regresion model. 
+To conclude our section on linear regression, we found our initial linear regression model wasn't too accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using ridge, lasso and elastic net. Although these didn't provide too much improvement (due to the fact there was less multicolinearity between variables than we anticipated), the ridge method appeared to provide the best results to optimise our linear regression model. 
 
 We also used transforms of variables, such as log population and polynomial terms for both the no2 concentration and year variables. This helped to capture the non-linearity aspects of our model. 
 
