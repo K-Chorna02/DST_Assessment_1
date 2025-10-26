@@ -9,7 +9,7 @@ output: html_document
 # Introduction
 
 Throughout this project, we use data relevant to environmental health analysis, focusing on air pollution data from the World Health Organisation.
-The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. We test on pm10 concentration for 2021 for different cities in Europe (read the 'Introduction'01_Data_and_Introduction' for justification of this choice of prediction)
+The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. We test on pm10 concentration for 2021 for different cities in Europe. We have filtered by European countries as these had the highest amount of data, making our results more interpretable. (Read the 'Introduction'01_Data_and_Introduction' for further justification of this choice of prediction.)
 These predictions could be used to influence policy making to address issues of increasing pm10 concentration levels over time, for example when trying to decide a threshold target similar to the Paris Climate agreement aiming to reduce temperature. 
 Having cleaned and prepared our data in the previous section, we will filter by European cities before examining which models we implemented for our predictive modelling and comparing their performance. We will also discuss the suitability of different performance measures such as RMSE for continuous predictions.
  
@@ -47,7 +47,11 @@ Quantify and justify your performance metric:
 Why RMSE? Would MAE or adjusted R² better capture real-world generalisability?
 Mention how your approach could generalise beyond Europe.
 
+We decided to use RMSE, R^2 and MAE to evaluate accuracy between our models, since these are a good indicator of predictive error in our pollution concentration levels, relevant to public health. 
 
+We prioritised RMSE for model selection, since larger errors in high pollution cities are more impactful in environmental monitoring.
+
+Decide if this is applicable to all of our models? 
 
 # Modelling with missingness 
 
@@ -61,11 +65,10 @@ Mention how your approach could generalise beyond Europe.
 ## Linear regression (with regularisation)
 
 In this section, we use linear regression to model pm10 concentration across European cities using several explanatory factors such as no2 concentration, population, and geographic features such as longitude and latitude. 
-We fit models using linear regression and extend this to Ridge, LASSO, and Elastic Net regression to address potential multicollinearity and improve predictive performance. Model performance is evaluated using k-fold cross-validation on training data (2013–2020) followed by out of sample validation on data from 2021 to assess tthe generalisation.
+To address potential multicollinearity issues, we extend our regression exploration to Ridge, LASSO, and Elastic Net.
+We evaluate our model's performance using k-fold cross-validation on training data (2013–2020) followed by out of sample validation on data from 2021 to assess the generalisation of our model.
 
 From previous EDA that we carried out in Assessment 0, we found that using the 'openair' package showed a negative linear trend between pm10 concentration and time, suggesting that linear regression is an appropriate modelling approach. 
-
-Linear regression cannot work if we have missing values, so for this we use our clean_europe_data.
 
 ### Literature review
 
@@ -73,7 +76,9 @@ Linear regression cannot work if we have missing values, so for this we use our 
 
 Following our EDA in assessment 0, we decided to include the following covariates in our model as they demonstrated significance in the prediction of pm10 concentration levels:
 
-- **year** (temporal, numeric, discrete )- this variable is essential in capturing trends in pm10 pollutant levels over time. Once we've cleaned our data we have the uears 2013-2021, we train our model on previous data (2013-2020) and then use out-of-sample testing on 2021 to assess our model's fit.
+- **year** (temporal, numeric, discrete )- this variable is essential in capturing trends in pm10 pollutant levels over time.
+We train our model on previous data (2013-2020) and then use out-of-sample testing on 2021 to assess our model's fit.
+*We use a quadratic term to capture curvature the curvature.*
 
 - **no2_concentration** (environmental)- we found this was a key environmental predictor given it is strongly correlated with pm10_concentration, typically demonstrating an association between the pollutant source.
 *We note that this doesn't have a strictly linear relationship so we include non-linear terms in our model to capture this.*
@@ -84,9 +89,9 @@ Following our EDA in assessment 0, we decided to include the following covariate
 - **population/log-population** (demographic, numeric, continuous)-  We include this as an indicator of city size. 
 *Due to its large range and skew, we found using a log transform of this improved our results, so this is also included in our model. *
 
--  **country_name** - (categorical), we have filtered by European countries as these had the highest amount of data, making our results more interpretable. While we don't use it directly in our model, we will use it in visualisations of our results.
-
 Coverage variables (pm10_tempcov, no2_tempcov) were excluded since they are related to data completeness rather than directly contributing to prediction.
+Note: We have filtered by european city so can exclude continents, we include 
+-  **country_name** - (categorical), we have filtered by European countries as these had the highest amount of data, making our results more interpretable. While we don't use it directly in our model, we will use it in visualisations of our results.
 
 So applying this we refine our dataset further: 
 ```{r further removal}
@@ -100,18 +105,21 @@ select(-iso3, -pm10_tempcov, -pm25_tempcov,-who_region,-no2_tempcov, -type_of_st
 Since we have identified our significant covariates, and building upon our EDA by exploring incorporating non-linear relationships, we can give our model using the following equation: 
 
 $$
-\text{PM}_{10,i} = \beta_0 + \beta_1 \cdot \text{Year}_i+\beta_2 \cdot \text{Year}_i^2 +\beta_3 \cdot\text{no2_concentration}+\beta_4 \cdot\text{no2_concentration}^2+\beta_5 \cdot\text{no2_concentration}^3+\beta_6 \cdot \text{population}+\beta_7 \cdot \text{log_population}+\beta_8 \cdot \text{longitude}+\beta_9 \cdot \text{latitude}+\beta_{10} \cdot \text{longitude}* \text{latitude}_i+ \varepsilon_i,
+\text{PM}_{10,i} = \beta_0 + \beta_1 \cdot \text{Year}_i+\beta_2 \cdot \text{Year}_i^2 +\beta_3 \cdot\text{No2}_i+\beta_4 \cdot\text{No2}_i^2+\beta_5 \cdot\text{No2}_i^3+\beta_6 \cdot \text{population}+\beta_7 \cdot \text{log_population}+\beta_8 \cdot \text{longitude}+\beta_9 \cdot \text{latitude}+\beta_{10} \cdot \text{longitude}* \text{latitude}_i+ \varepsilon_i,
 $$
 
 where $\varepsilon_i \sim N(0,\sigma^2)$.
 
 ## Test/train
 
-To assess the performance of our model and ensure our results aren't biased, we must first split our data into two subsets: a test set and a training set. This will avoid any temporal leakage and isolate our true values for 2021, ensuring that the model does not have access to information from future years during training.
+To assess the performance of our model reliably and ensure its robustness, we must first split our data into two subsets: a test set and a training set. 
 
-The training set includes all data from our cleaned Europe data set for 2013-2020, we will use this to perform our k-fold CV. 
-Our test set is the data we obtained for 2021 for European cities, which we use for out of sample validation later. 
-This means we can effectively assess how well the model generalises to unseen future data, as we'd expect in a real world scenario, demonstrating its robustness. 
+- The **training set** includes all data from our cleaned Europe data set for 2013-2020, we will use this to perform our k-fold CV. 
+
+- Our **test set** is the data we obtained for 2021 for European cities, which we use for out of sample validation later. 
+
+This will avoid any temporal leakage and isolate our true values for 2021, ensuring that the model does not have access to unseen future data, as we would expect in a real forecasting scenario.
+However, our model may under perform for non-European or post-2021 data due to changes we may not have observed in this historical data. 
 
 ```{r model}
 #splitting into train/test
@@ -163,7 +171,7 @@ modelcv$results
 
 We saw from our model that the cross-validated linear regression achieved an R^2 of 0.4908 on the training set. This means that the model explains 49.08% of the variance in pm10 concentrations across European cities.
 
-From the model summary we saw that most predictors were statistically significant, demonstrating that variables such as no2 and spatial coordinates contribute to the explanation of pm10 concentrations. The only exception being population, which showed no significant effect. However log population showed to be a statistically significant variable, so by transforing we were able to show population density does contribute to pm10 concentration. 
+From the model summary we saw that most predictors were statistically significant, demonstrating that variables such as no2 and spatial coordinates contribute to the explanation of pm10 concentrations. The only exception being population, which showed no significant effect. However log population showed to be a statistically significant variable, so by transforming we were able to show population density does contribute to pm10 concentration. 
 
 ## Model assumptions
 
@@ -221,18 +229,20 @@ Overall our model appears to provide a reasonably good prediction for a variety 
 
 
 ## Extending our linear regression by regularising
-To improve our model, we build upon the ideas of linear regression by regularising. 
+To improve our model, we build upon the ideas of linear regression by regularising, this means we penalise larger coefficients in order to control the variance. This can be given by the following mathematical equation: 
+
+
+Where $\lambda$ controls the shrinkage, and $\alpha$ indicates the method. 
 There are a variety of ways of doing this, we focus on the following methods: 
 
-- Ridge: Reduces the size of all of the coefficients, but keeps them in the model. We have correlation between some predictors so this method should smooth out any instabilities this causes.
+- Ridge: $\alpha=0$, Reduces the size of all of the coefficients, but keeps them in the model. We have correlation between some predictors so this method should smooth out any instabilities this causes.
 
-- Lasso: This method is similar to Ridge, but can shrink some coefficients all the way to zero, automatically removing less important variables. 
+- Lasso: $\alpha=1$, This method is similar to Ridge, but can shrink some coefficients all the way to zero, automatically removing less important variables. 
 
 - Elastic (combines Ridge and Lasso): It keeps Ridge’s stability and LASSO’s ability to select variables, balancing the two through a mixing parameter 
-$\alpha$
+$\alpha$.
 
-### Ridge
-```{r ridge}
+```{r ridge, echo=FALSE}
 set.seed(2)
 #first we try ridge regression
 ridge_model <- train(lm_formula_pm10,data = train_data,method = "glmnet",
@@ -243,26 +253,17 @@ ridge_model$bestTune
 #so now predicting for 2021:
 test_data_2021$predicted_pm10_ridge <- predict(ridge_model, newdata = test_data_2021)
 ```
-We can see from our plot that the optimal regularisation parameter is 0.3061918, as beyond this point the RMSE CV increases with lambda (reg parameter), before that it behaves in the same way as our linear regression.
 
-
-### LASSO
-```{r Lasso}
+```{r Lasso,echo=FALSE}
 set.seed(2)
-
 lasso_model <- train(lm_formula_pm10,data = train_data,
   method = "glmnet",trControl = trainControl(method = "cv", number = 5),
-  tuneGrid = expand.grid(alpha = 1,lambda = seq(0.0001, 1, length = 50))
-)
+  tuneGrid = expand.grid(alpha = 1,lambda = seq(0.0001, 1, length = 50)))
 lasso_model$bestTune
 test_data_2021$predicted_pm10_lasso <- predict(lasso_model, newdata = test_data_2021)
 ```
 
-Similar to Ridge, we can see that the RMSE increases as the regularisation paramter increases, with our best results being around lambda=0.04091224, but again this doesn't provide very much difference from our original liner regression model. 
-
-
-### Elastic 
-```{r elastic}
+```{r elastic,echo=FALSE}
 set.seed(2)
 
 elastic_model <- train(lm_formula_pm10,data = train_data,
@@ -272,8 +273,6 @@ method = "glmnet",trControl = trainControl(method = "cv", number = 5),
 elastic_model$bestTune
 test_data_2021$predicted_pm10_elastic <- predict(elastic_model, newdata = test_data_2021)
 ```
-By combining via elastic net, we see we use approx 88.89% lasso, and approximately 11.11% Ridge, providing a regularisation parameter of lambda= 0.04091224. 
-
 
 ### Comparison
 ```{r comparison}
@@ -285,6 +284,8 @@ comparison <- rbind(
 )
 comparison
 ```
+
+After running the code for our Ridge, LASSO and Elastic Net, we obtained the above table of comparisons. 
 
 Evidently, the values we can see in our table are all are fairly similar, so evaluating the performance of each model is more nuanced than a clearly defined optimal model.
 
@@ -298,9 +299,9 @@ Hence we can conclude that the Ridge regularisation linear regression is the bes
 
 ### Conclusions for Linear regression
 
-To conclude our section on linear regression, we found our initial linear regression model wasn't too accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using ridge, lasso and elastic net. Although these didn't provide too much improvement (due to the fact there was less multicolinearity between variables than we anticipated), the ridge method appeared to provide the best results to optimise our linear regresion model. 
+To conclude our section on linear regression, we found our initial cross validated linear regression model wasn't very accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using Ridge, LASSO and Elastic net. Although these didn't provide too much improvement (due to the fact there was less multicolinearity between variables than we anticipated), the Ridge method appeared to provide the best results to optimise our linear regresion model. 
 
-We also used transforms of variables, such as log population and polynomial terms for both the no2 concentration and year variables. This helped to capture the non-linearity aspects of our model. 
+We also used transforms of variables, such as log population and polynomial terms for both the no2 concentration and year variables. This helped to capture the non-linearity aspects of our model. However we did find that our model assumptions were violated for the linearity assumption, suggesting further transforms or more explanatory variables should be included to improve our model.
 
 Significant predictors we found were year (which is to be expected given the negative correlation of our pm10 concentrations over time), no2 concentrations spatial locations and log population. 
 
