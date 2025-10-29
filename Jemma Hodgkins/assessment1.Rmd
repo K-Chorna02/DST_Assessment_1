@@ -1,0 +1,144 @@
+---
+title: "Assessment 1"
+output: html_document
+date: "2025-10-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Robust regression
+We have seen in section Linear Regression how to address multicollinearlity and overfitting with the ridge, lasso and elastics net regression. Now we will look at robust regression models, these models perform more reliably when the data contains outliers. This can be particularly useful in environmental data since there can be anomalies in the data due to short term events such as fires or storms or fault equipment. However, as our data is the average pm10 concentration from the given year in a given city anomalies may be less likely since we already have an average not the individual values from through out the year.
+
+
+In our above working we have been using the ordinary least squares residual which aims to minimise the function $ \sum_i (y_i - x_i^T \beta )^2$. As we can see from this equation residuals get quadratic penalties and hence very large residual can dominate the fit. 
+
+For the next section we found a source "Venables, W.N. and Ripley, B.D. (2002) Modern applied statistics with S. 4th ed. New York: Springer." that explained robust and resistant regression and the packages required in R.
+
+
+Robust regression minimises a weighted loss function so large residuals have less influence. 
+
+
+For a given density $ f$ we define the loss function as $ \rho = - \log f $
+
+
+So the MLE estimator solves $ \min_ \mu \sum_i - \log f (y_i - \mu) = \min _\mu \sum_i \rho (y_i - \mu) $
+
+we set $ \psi $ to be the derivative of $ \rho $ so $ \psi = \rho ' $
+
+to find the minimum we set the derivative of the function to zero and hence we get $ \sum_i \psi (y_i - \hat{\mu}) =0  $. We can also write this in the weighted form with $\sum_i w_i(y_i-\hat{\mu})=0 $ where $ w_i =\psi (y_i-\hat{\mu})/(y_i-\hat{\mu})$ is the weight of each iteration in the algorithm.
+
+
+In particular we will look at three robust models which each define $\psi$ differently:
+Huber: $ \chi (x) = \psi (x)^2 = \min (|x|,c)^2$ where $c=1.5$ is the default.
+Tukey : $ \psi(t) = t[1-(\frac{t}{R})^2] _+^2$ where the value $ R= 4.685 $ gives a $ 95%$ efficiency at the normal
+Hampel: is a piecewise function for example $\psi(x) = \text{sgn} (x) \begin{cases} |x| & \ 0<|x| <a \\ a & a<|x| <b \\ a(c-|x|)/(c-b) & \ b<|x|<c \\ 0 & c<|x| \end{cases}$
+
+
+The main difference between these models is how quickly they downweigh the outliers, Tukey is the most resistant as it completely rejects very large residuals, Hampel takes a middle ground moderately downweighing and only removing very extreme values and Huber is the least aggressive down weighing residuals but never fully removing them.
+
+We will continue using the same equation for our model as in Linear Regression section.
+
+```{r}
+
+lm_formula_pm10=pm10_concentration ~ poly(year, 2)+poly(no2_concentration,3) +population+log_population+ longitude+latitude+ latitude*longitude
+ 
+ols_model <- lm(lm_formula_pm10, data = train_data)
+```
+
+
+Applying the robust regression models we explained above to our model above using the new library 'MASS'  where we can specify the model we want to use by choosing out $\psi$ as described in "Venables, W.N. and Ripley, B.D. (2002)" we get:
+
+```{r}
+library(MASS)
+
+huber_model <- rlm(lm_formula_pm10, data = train_data, psi = psi.huber)
+
+tukeys_model <- rlm(lm_formula_pm10, data = train_data, psi = psi.bisquare)
+
+hampels_model<- rlm(lm_formula_pm10, data = train_data, psi = psi.hampel)
+```
+
+#Resistant Regression
+
+In addition to robust regression, resistant regression also performs more reliably when outliers are present in the dataset. However resistant regression doesn't minimise the ordinary least squares equation, it minimises a different loss function which ignores the extreme points rather than just downweighing them.
+In particular we will look at:
+
+Least median of squares, LMS: $\min_b \text{median} |y_i - x_ib|^2 $ this minimises the median of squared residuals. It can be very inefficient as it has a converging rate of $\frac{1}{\sqrt[3]{n}}$.
+Least trimmed squares regression, LTS: $\min_b \sum_{i=1}^q |y_i -x_ib|^2_{(i)}$ where $q=(n+p+1)/2$, this minimises the sum of the smallest q squared residuals.
+S-estimation: the solution to $\sum_{i=1}^n \chi (\frac{y_i-x_ib}{c_0s}) = (n-p)\beta$ with small scale s, $\chi$ is usually chosen as $\chi (u) = u^6 -3u^4 + 3u^2,  |u| \leq 1$ and $c_0= 1.548$ and $\beta = 0.5$ are chosen for consistency at the normal distribution of errors.
+
+
+Comparing these three models, LMS is the most resistance, LTS is moderately resistant and retains a good eficientcy and S-estimator is the least aggressive but is more efficient than LTS and LMS.
+
+Applying these resistant models to our previous model using the 'MASS' package we get:
+
+```{r}
+lms_model <- lqs(lm_formula_pm10, data = train_data) #LMS is the default of lqs()
+
+lts_model <- lqs(lm_formula_pm10, data = train_data, method = "lms")
+
+s_model <- lqs(lm_formula_pm10, data = train_data, method = "S")
+```
+
+
+## Initial comparison
+
+```{r}
+
+model_comparison <- data.frame(
+  Model = c("OLS", "Huber", "Tukey", "Hampel", "LMS", "LTS", "S"),
+  Scale_or_RSE = c(
+    as.numeric(sigma(ols_model)[1]),
+    as.numeric(huber_model$s[1]),
+    as.numeric(tukeys_model$s[1]),
+    as.numeric(hampels_model$s[1]),
+    as.numeric(lms_model$scale[1]),
+    as.numeric(lts_model$scale[1]),
+    as.numeric(s_model$scale[1])
+  )
+)
+
+print(model_comparison)
+
+```
+From this we initially see that the residual standard error is much higher for the ordinary least squares model than the robust and resistant regression models. This  tells us that the OLS model is most sensitive to the outliers which is what we expected. The S estimator is significantly the lowest implying that it is highly robust to outliers.
+
+
+#prediction 
+
+```{r}
+# Predictions
+pred_ols      <- predict(ols_model, newdata = test_data_2021)
+pred_huber    <- predict(huber_model, newdata = test_data_2021)
+pred_tukey    <- predict(tukeys_model, newdata = test_data_2021)
+pred_hampel   <- predict(hampels_model, newdata = test_data_2021)
+pred_lms      <- predict(lms_model, newdata = test_data_2021)
+pred_lts      <- predict(lts_model, newdata = test_data_2021)
+pred_s        <- predict(s_model, newdata = test_data_2021)
+
+```
+
+#comparing
+
+
+```{r}
+robust_compare <- rbind(
+  OLS = postResample(pred = pred_ols, test_data_2021$pm10_concentration),
+  Huber = postResample(pred = pred_huber, test_data_2021$pm10_concentration),
+  Tukey = postResample(pred = pred_tukey, test_data_2021$pm10_concentration),
+  Hampel = postResample(pred = pred_hampel, test_data_2021$pm10_concentration),
+  LMS = postResample(pred = pred_lms, test_data_2021$pm10_concentration),
+  LTS = postResample(pred = pred_lts, test_data_2021$pm10_concentration),
+  S = postResample(pred = pred_s, test_data_2021$pm10_concentration)
+  
+)
+  
+robust_compare 
+```
+The RMSE is significantly high for the LMS model, indicating poor performance. In contrast, the robust models and OLS performed better, with the Huber model achieving the lowest RMSE. Similarly, for the R² metric, where a higher value indicates better fit, LMS again performed the worst, and all resistant regression models showed weaker performance. The Huber model achieved the highest R², closely followed by OLS. For MAE, where lower values are preferred, all robust models outperformed the others, with Huber once again performing best. Therefore, we select the Huber model as our robust regression approach to predict the PM10 concentrations for 2021.
+
+
