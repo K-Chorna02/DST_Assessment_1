@@ -70,15 +70,25 @@ prop
 Hence we have removed 84.7% of our data, so we acknowledge that our models might not be as accurate.
 
 ## Performance metric 
-Quantify and justify your performance metric:
-Why RMSE? Would MAE or adjusted R² better capture real-world generalisability?
-Mention how your approach could generalise beyond Europe.
 
-We decided to use RMSE, R^2 and MAE to evaluate accuracy between our models, since these are a good indicator of predictive error in our pollution concentration levels, relevant to public health. 
+We read and reviewed a paper discussing various performance metrics in regression models, @performancemetric, the paper outlined RMSE Root mean squared error) and MAE (Mean absolute error) as key metrics to evaluate accuracy between models. 
 
-We prioritised RMSE for model selection, since larger errors in high pollution cities are more impactful in environmental monitoring.
+MAE provides an effective measure of average prediction error, however it is less sensitive to outliers due to the fact all errors are weighted equally. This makes it more robust than RMSE, but less realistic in a real world scenario where outliers are likely to be significant to our predictions.
 
-Decide if this is applicable to all of our models? 
+RMSE is less robust than MAE, but penalises larger deviations, making it a better metric for capturing real world generalisability, for example if we chose to extend our models beyond Europe. 
+
+Given our EDA from assessment 0, several cities were identified as outliers, so we focused on RMSE as larger errors in high pollution cities are more 
+impactful in our health setting.
+
+## Test/train
+
+To assess the performance of our models reliably and ensure their robustness, we must first split our data into two subsets: a test set and a training set. 
+- The **training set** includes all data from our cleaned Europe data set for 2013-2020, we will use this to perform our k-fold CV. 
+
+- Our **test set** is the data we obtained for 2021 for European cities, which we use for out of sample validation later. 
+
+This will avoid any temporal leakage and isolate our true values for 2021, ensuring that the model does not have access to unseen future data, as we would expect in a real forecasting scenario.
+However, our model may under perform for non-European or post-2021 data due to changes we may not have observed in this historical data.
 
 # Modelling with missingness 
 
@@ -141,15 +151,7 @@ $$
 where $\varepsilon_i \sim N(0,\sigma^2)$.
 
 ## Test/train
-
-To assess the performance of our model reliably and ensure its robustness, we must first split our data into two subsets: a test set and a training set. 
-
-- The **training set** includes all data from our cleaned Europe data set for 2013-2020, we will use this to perform our k-fold CV. 
-
-- Our **test set** is the data we obtained for 2021 for European cities, which we use for out of sample validation later. 
-
-This will avoid any temporal leakage and isolate our true values for 2021, ensuring that the model does not have access to unseen future data, as we would expect in a real forecasting scenario.
-However, our model may under perform for non-European or post-2021 data due to changes we may not have observed in this historical data. 
+Using the test/train split we outlined earlier:
 
 ```{r model}
 #splitting into train/test
