@@ -5,9 +5,25 @@ date: "2025-10-25"
 output: html_document
 ---
 
-## Performance metric
-Why we chose a specific performance metric Quantify and justify your performance metric:
-Why RMSE? Would MAE or adjusted R² better capture real-world generalisability?
+#RMSE
+We used RMSE as our chosen Performance metric as it took into account outliers, which may be significant in our data, while also ensuring accuracy of our model. 
+The RMSE is given by : 
+$$
+\text{RMSE} = \sqrt{ \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2 }
+$$
+Where y_i is the...
+\hat{y_i} are our predicted ... 
+
+
+The differing RMSE values can be seen below for our different models: 
+
+%here we insert a barplot of our differing RMSE values, for lin regression we saw Ridge returned the best RMSE
+
+
+
+
+However, it is worth noting that although we chose RMSE as our chosen metric, there is value n other metrics that aren't captured solely by the RMSE. 
 
 #Conclusions
+Hence, we can conclude that our model with the lowest RMSE, hence ... 
 
