@@ -107,11 +107,6 @@ We evaluate our model's performance using k-fold cross-validation on training da
 
 From previous EDA that we carried out in Assessment 0, we found that using the 'openair' package (https://rdocumentation.org/packages/openair/versions/2.19.0) showed a negative linear trend between pm10 concentration and time, suggesting that linear regression is an appropriate modelling approach. 
 
-### Literature review
-
-After carrying out a literature review on how to improve our model, we came across a paper on using  @CHEN2019104934, 
-
-
 ### Model equation
 
 Following our EDA in assessment 0, we decided to include the following covariates in our model as they demonstrated significance in the prediction of pm10 concentration levels:
@@ -261,7 +256,8 @@ Overall our model appears to provide a reasonably good prediction for a variety 
 
 
 ## Extending our linear regression by regularising
-To improve our model, we build upon the ideas of linear regression by regularising, this means we penalise larger coefficients in order to control the variance and reduce the effects of multicollinearity. 
+
+After carrying out a literature review on how to improve our model, we came across a paper on using  @CHEN2019104934, where we build upon the ideas of linear regression by regularising, this means we penalise larger coefficients in order to control the variance and reduce the effects of multicollinearity. 
 
 Where $\lambda$ controls the shrinkage, and $\alpha$ indicates the method. 
 There are a variety of ways of doing this, we focus on the following methods: 
