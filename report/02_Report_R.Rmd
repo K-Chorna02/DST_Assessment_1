@@ -99,6 +99,9 @@ test_data<- data[-train_index, ]
 train_index_clean <- createDataPartition(clean_europe_data$pm10_concentration, p = 0.9, list = FALSE) #we create a 90-10 split
 train_data_clean <- data[train_index, ]
 test_data_clean <- data[-train_index, ]
+
+#now using cross validation:
+train_cv= trainControl(method = "cv",number=10)
 ```
 
 # Modelling with missingness 
@@ -167,7 +170,7 @@ Using the test/train split we outlined earlier, we use our test_data_clean and c
 ```{r cv}
 library(caret) #We use the package 'caret' that we saw in the workshop 2.3. 
 #now using cv: (we use 10 folds, as we don't have too much data, but it reduces bias)
-modelcv=train(lm_formula_pm10, data = clean_data_europe_reg, method = "lm" ,trControl=trainControl(method = "cv",number=10))
+modelcv=train(lm_formula_pm10, data = clean_data_europe_reg, method = "lm" ,train_cv)
 
 summary(modelcv$finalModel)
 ```
