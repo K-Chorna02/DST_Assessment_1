@@ -1,11 +1,12 @@
 ---
-title: "03_Conclusions"
+title: "04_Conclusions"
 author: "Minnie"
 date: "2025-10-25"
 output: html_document
 ---
 
-#RMSE
+# Performance metric
+
 We used RMSE as our chosen Performance metric as it took into account outliers, which may be significant in our data, while also ensuring accuracy of our model. 
 The RMSE is given by : 
 $$
@@ -20,9 +21,18 @@ The differing RMSE values can be seen below for our different models:
 %here we insert a barplot of our differing RMSE values, for lin regression we saw Ridge returned the best RMSE
 
 
+However, it is worth noting that although we chose RMSE as our chosen metric, there is value in other metrics that aren't captured solely by the RMSE. 
+
+# Comparing our models : 
+
+## Missing data
 
 
-However, it is worth noting that although we chose RMSE as our chosen metric, there is value n other metrics that aren't captured solely by the RMSE. 
+
+## Removing missing data
+
+
+
 
 #Conclusions
 Hence, we can conclude that our model with the lowest RMSE, hence ... 
