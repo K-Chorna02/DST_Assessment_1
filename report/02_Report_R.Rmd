@@ -49,8 +49,7 @@ Hence, we have decided to split our challenge into 2 main categories:
 ```{r europe clean data} 
 library(dplyr)
 europe_data= who_data %>%
-  filter(who_region=="4_Eur")%>%
-  select(-pm25_concentration)
+  filter(who_region=="4_Eur")
 ```
 
 *predictive modelling by removing NAs* - We remove the missing data all together, evidently this creates an over smoothing issue, but for the purpose of this task we will still be able to illustrate our results clearly. 
@@ -80,15 +79,26 @@ RMSE is less robust than MAE, but penalises larger deviations, making it a bette
 Given our EDA from assessment 0, several cities were identified as outliers, so we focused on RMSE as larger errors in high pollution cities are more 
 impactful in our health setting.
 
-## Test/train
-
+#Testing and validation
 To assess the performance of our models reliably and ensure their robustness, we must first split our data into two subsets: a test set and a training set. 
-- The **training set** includes all data from our cleaned Europe data set for 2013-2020, we will use this to perform our k-fold CV. 
+- The **training set** consists of 90% all data from our cleaned Europe data, we will use this to perform our k-fold CV. 
 
-- Our **test set** is the data we obtained for 2021 for European cities, which we use for out of sample validation later. 
+- Our **validation set** is 10% of the data that we randomly select which we use for out of sample validation later. 
 
-This will avoid any temporal leakage and isolate our true values for 2021, ensuring that the model does not have access to unseen future data, as we would expect in a real forecasting scenario.
-However, our model may under perform for non-European or post-2021 data due to changes we may not have observed in this historical data.
+We use the validation set to see how well our model performs generally, which we could use to predict pm10 concentration for other citities. We note that our models may perform well within Europe, but may not generalise as well outside of this continent.
+
+```{r model}
+set.seed(2)
+#for models that include missing data 
+train_index<- createDataPartition(europe_data$pm10_concentration, p = 0.9, list = FALSE) #we create a 90-10 split
+train_data<- data[train_index, ]
+val_data<- data[-train_index, ]
+
+#for models that don't include missing data
+train_index_clean <- createDataPartition(clean_europe_data$pm10_concentration, p = 0.9, list = FALSE) #we create a 90-10 split
+train_data_clean <- data[train_index, ]
+val_data_clean <- data[-train_index, ]
+```
 
 # Modelling with missingness 
 
