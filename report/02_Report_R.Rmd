@@ -98,8 +98,8 @@ test_data  <- europe_data[-train_index, ]
 
 #for models that don't include missing data
 train_index_clean <- createDataPartition(clean_data_europe$pm10_concentration, p = 0.9, list = FALSE) #we create a 90-10 split
-train_data_clean <- data[train_index_clean, ]
-test_data_clean <- data[-train_index_clean, ]
+train_data_clean <- clean_data_europe[train_index_clean, ]
+test_data_clean <- clean_data_europe[-train_index_clean, ]
 
 #now using cross validation:
 train_cv= trainControl(method = "cv",number=10)
