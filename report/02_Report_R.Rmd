@@ -148,9 +148,9 @@ train_cv= trainControl(method = "cv",number=10)
 
 # Modelling with missingness 
 
-## 01-Random forest
+## 01- Random forest
 
-## 02- 
+## 02- XGboost
 
 
 # Modelling without missingness 
@@ -362,9 +362,9 @@ Including these variables could help to address the assumption violations we fou
 
 
 
-## Support Vector Machine 
+# 04- Robust regression
 
-## (Jemma model)
+# 05- Support vector machines
 
 
 
