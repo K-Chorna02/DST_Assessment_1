@@ -52,7 +52,7 @@ europe_data= who_data %>%
 *predictive modelling by removing NAs* - We remove the missing data all together, evidently this creates an over smoothing issue, but for the purpose of this task we will still be able to illustrate our results clearly. 
 
 ```{r data set NAs removed} 
-clean_data_europe= select(-pm25_concentration) %>%
+clean_data_europe= europe_data %>% select(-pm25_concentration) %>%
 na.omit(europe_data)
 ```
 
@@ -217,42 +217,6 @@ As we can see from the model fit:
 
 Hence, we haven't fitted the optimal model since our assumptions have been violated. Because of this, we expect other models to perform better in our 'artificial competition'.
 
-Now using our model we can use our out of sample data to predict pm10 concentration: 
-```{r predictions}
-# Predict PM10 for all observations in the dataset
-clean_data_europe_reg$predicted_pm10 <- predict(modelcv, newdata = clean_data_europe_reg)
-#now our results:
-results=data.frame(
-  actual_pm10 = clean_data_europe_reg$pm10_concentration,
-  predicted_pm10 = clean_data_europe_reg$predicted_pm10,
-  country = clean_data_europe_reg$country_name)
-```
-
-## Model visualisation
-We visualise the relationship between actual pm10 values and predicted pm10 values for European cities, we have coloured the cities by their corresponding countries: 
-
-```{r visual}
-library(ggplot2)
-ggplot(results, aes(
-  x = actual_pm10,y = predicted_pm10,color = country)) +
-  geom_point(alpha = 0.8, size = 2) +
-  geom_abline(intercept = 0, slope = 1, color = "black") +geom_smooth(method = "lm", se = FALSE, color = "red")+
-  labs(title = "Actual vs Predicted PM10 concentrations for cities in Europe", 
-    x = "Actual PM10 concentration",y = "Predicted PM10 concentration",
-    color = "Country"
-  ) +
-  theme_minimal(base_size = 10) +
-  theme(legend.position = "right",plot.title = element_text(face = "bold"))
-
-```
-
-In our figure we have included the 1:1 reference line (perfect prediction line) in black, and our regression line in red.
-
-We can see from our figure that most of our data is clustered around the lower left of our data set, suggesting many of our pm10 pollution levels are lower in value. There are many points evenly distributed around the 1:1 reference line, suggesting a fairly good model fit, with the exception of a few outliers in cities located in France, Israel, Ireland and Italy. These may be due to political or meteorological conditions that we haven't considered in our model. We could consider removing these city outlier points, as it would increase the model performance, however this would also introduce a bias to our model. We also note these outlier points are for higher pollution levels, so removing these would lead to a bias towards lower pm10 concentrations.
-
-Overall our model appears to provide a reasonably good prediction for a variety of cities in Europe, however with outliers this has slightly skewed the prediction accuracy of our model for higher level pm10 concentrations. 
-
-
 ## Extending our linear regression by regularising
 
 After carrying out a literature review on how to improve our model, we came across a paper on using  @CHEN2019104934, where we build upon the ideas of linear regression by regularising, this means we penalise larger coefficients in order to control the variance and reduce the effects of multicollinearity. 
@@ -270,39 +234,32 @@ $\alpha$.
 ```{r ridge, echo=FALSE}
 set.seed(21)
 #first we try ridge regression
-ridge_model <- train(lm_formula_pm10,data = clean_data_europe_reg,method = "glmnet",
-  trControl = trainControl(method = "cv", number = 10),
+ridge_model <- train(lm_formula_pm10,data = train_data_clean,method = "glmnet",
+  trControl = train_cv,
   tuneGrid = expand.grid(alpha = 0,lambda = seq(0.0001, 1, length = 50)))
 
 #now LASSO:
-lasso_model <- train(lm_formula_pm10,data = clean_data_europe_reg,
-  method = "glmnet",trControl = trainControl(method = "cv", number = 10),
+lasso_model <- train(lm_formula_pm10,data = train_data_clean,
+  method = "glmnet",trControl = train_cv,
   tuneGrid = expand.grid(alpha = 1,lambda = seq(0.0001, 1, length = 50)))
 
 #and elastic net:
-elastic_model <- train(lm_formula_pm10,data = clean_data_europe_reg,
-method = "glmnet",trControl = trainControl(method = "cv", number = 10),
+elastic_model <- train(lm_formula_pm10,data = train_data_clean,
+method = "glmnet",trControl = train_cv,
   tuneGrid = expand.grid(alpha = seq(0, 1, length = 10),lambda = seq(0.0001, 1, length = 50)))
 
-#so now predicting:
-comparison <- rbind(
-  Linear = postResample(results_2021$predicted_pm10, results_2021$actual_pm10),
-  Ridge = postResample(test_data_2021$predicted_pm10_ridge, test_data_2021$pm10_concentration),
-  LASSO = postResample(test_data_2021$predicted_pm10_lasso, test_data_2021$pm10_concentration),
-  Elastic=postResample(test_data_2021$predicted_pm10_elastic, test_data_2021$pm10_concentration)
-)
+#so now comparing:
+comparison <- data.frame(
+  Model = c("Linear", "Ridge", "LASSO", "Elastic Net"),
+  RMSE = c(min(modelcv$results$RMSE),min(ridge_model$results$RMSE),min(lasso_model$results$RMSE),min(elastic_model$results$RMSE)),
+  R2 = c( max(modelcv$results$Rsquared),max(ridge_model$results$Rsquared),max(lasso_model$results$Rsquared),max(elastic_model$results$Rsquared)
+  ),
+  MAE = c(min(modelcv$results$MAE),
+    min(ridge_model$results$MAE),
+    min(lasso_model$results$MAE),
+    min(elastic_model$results$MAE)))
+  
 comparison
-
-#we combine these to see:
-best_params <- data.frame(
-  Model = c("Ridge", "LASSO", "Elastic Net"),
-  Alpha = c(0, 1, elastic_model$bestTune$alpha),
-  Lambda = c(ridge_model$bestTune$lambda,
-             lasso_model$bestTune$lambda,
-             elastic_model$bestTune$lambda)
-)
-knitr::kable(best_params, caption = "Best alpha and lambda values for each method")
-
 ```
 
 We can see that the optimal regularisation parameter is $\lambda$ = 0.3265980 for Ridge, this suggests moderate shrinkage of coefficients, for smaller values of $\lambda$ it behaves in the same way as our linear regression.
@@ -310,18 +267,6 @@ We can see that the optimal regularisation parameter is $\lambda$ = 0.3265980 fo
 Similar to Ridge, we can see that the best results were for  $\lambda$=0.0205061, suggesting only a small penalty, so doesn't provide very much difference in performance from our original linear regression model. 
 
 By combining via elastic net, we see we use approximately 88.89% lasso, and approximately 11.11% Ridge for our optimal model, providing a regularisation parameter of $\lambda$= 0.0001000, showing nearly no difference from our linear regression model.
-
-
-### Comparison
-```{r comparison}
-comparison <- rbind(
-  Linear = postResample(results_2021$predicted_pm10, results_2021$actual_pm10),
-  Ridge = postResample(test_data_2021$predicted_pm10_ridge, test_data_2021$pm10_concentration),
-  LASSO = postResample(test_data_2021$predicted_pm10_lasso, test_data_2021$pm10_concentration),
-  Elastic=postResample(test_data_2021$predicted_pm10_elastic, test_data_2021$pm10_concentration)
-)
-comparison
-```
 
 After running the code for our Ridge, LASSO and Elastic Net, we obtained the above table of comparisons. 
 
@@ -334,6 +279,44 @@ Regarding the R^2 value, we can see the Linear model has the highest value, sugg
 Meanwhile the method with the smallest MAE (Mean Absolute Error) is the Ridge method once again. Meaning we can deduce that overall this method deviates the least from our true pm10 concentrations.
 
 Hence we can conclude that the Ridge regularisation linear regression is the best model for our regression, although the differences are very small, it strikes the best balance between bias and variance whuch provides slightly better predictive accuracy. 
+
+## Model visualisation:
+
+Now using our model we can use our out of sample data to predict pm10 concentration: 
+```{r predictions}
+# Predict PM10 for all observations in the dataset
+test_data_clean$predicted_pm10 <- predict(elastic_model, newdata = test_data_clean)
+#now our results:
+results=data.frame(
+  actual_pm10 = test_data_clean$pm10_concentration,
+  predicted_pm10 = test_data_clean$predicted_pm10,
+  country = test_data_clean$country_name)
+```
+
+
+We visualise the relationship between actual pm10 values and predicted pm10 values for European cities, we have coloured the cities by their corresponding countries: 
+
+```{r visual}
+library(ggplot2)
+ggplot(results, aes(
+  x = actual_pm10,y = predicted_pm10,color = country)) +
+  geom_point(alpha = 0.8, size = 2) +
+  geom_abline(intercept = 0, slope = 1, color = "black") +geom_smooth(method = "lm", se = FALSE, color = "red")+
+  labs(title = "Actual vs Predicted PM10 concentrations for cities in Europe", 
+    x = "Actual PM10 concentration",y = "Predicted PM10 concentration",
+    color = "Country"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "right",plot.title = element_text(face = "bold"))
+```
+
+
+In our figure we have included the 1:1 reference line (perfect prediction line) in black, and our regression line in red.
+
+We can see from our figure that most of our data is clustered around the lower left of our data set, suggesting many of our pm10 pollution levels are lower in value. There are many points evenly distributed around the 1:1 reference line, suggesting a fairly good model fit, with the exception of a few outliers in cities located in France, Israel, Ireland and Italy. These may be due to political or meteorological conditions that we haven't considered in our model. We could consider removing these city outlier points, as it would increase the model performance, however this would also introduce a bias to our model. We also note these outlier points are for higher pollution levels, so removing these would lead to a bias towards lower pm10 concentrations.
+
+Overall our model appears to provide a reasonably good prediction for a variety of cities in Europe, however with outliers this has slightly skewed the prediction accuracy of our model for higher level pm10 concentrations. 
+
 
 ### Conclusions for Linear regression
 
