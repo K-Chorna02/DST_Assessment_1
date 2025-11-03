@@ -20,14 +20,6 @@ who_data$who_region =as.factor(who_data$who_region)
 
 #and finally, we can see Turkey isn't defined properly in the dataset, so we add 
 who_data$country_name[who_data$iso3 == "TUR"] <- "Turkey"
-
-europe_data= who_data %>%
-  filter(who_region=="4_Eur")%>%
-  select(-iso3, -pm10_tempcov, -pm25_tempcov,-who_region,-no2_tempcov, -type_of_stations)%>%
-  mutate(log_population = log(population)) # EDA showed a transform was a better predictor of results
-
-clean_data_europe= na.omit(europe_data)%>%
-  select(-pm25_concentration)
 ```
 
 
@@ -51,13 +43,17 @@ Hence, we have decided to split our challenge into 2 main categories:
 ```{r europe clean data} 
 library(dplyr)
 europe_data= who_data %>%
-  filter(who_region=="4_Eur")
+  filter(who_region=="4_Eur")%>%
+  select(-iso3, -pm10_tempcov, -pm25_tempcov,-who_region,-no2_tempcov, -type_of_stations)%>%
+  mutate(log_population = log(population)) # EDA showed a transform was a better predictor of results
+
 ```
 
 *predictive modelling by removing NAs* - We remove the missing data all together, evidently this creates an over smoothing issue, but for the purpose of this task we will still be able to illustrate our results clearly. 
 
 ```{r data set NAs removed} 
-clean_data_europe= na.omit(europe_data)
+clean_data_europe= select(-pm25_concentration) %>%
+na.omit(europe_data)
 ```
 
 Note: we can see how many rows were removed, there is a key difference between how many NA values were removed and how many rows were removed, as some rows may contain multiple missing values. 
