@@ -6,6 +6,32 @@ output: html_document
 bibliography: references_lit.bib
 ---
 
+```{r libraries}
+# Install packages if needed
+if(!require("ggplot2")) install.packages("ggplot2")
+if(!require("dplyr")) install.packages("dplyr")
+if(!require("e1071")) install.packages("e1071")
+if(!require("ggrepel")) install.packages("ggrepel")
+if(!require("kableExtra")) install.packages("kableExtra")
+if(!require("plotly")) install.packages("plotly")
+if(!require("caret")) install.packages("caret")
+if(!require("stringi")) install.packages("stringi")
+if(!require("randomForest")) install.packages("randomForest")
+if(!require("glmnet")) install.packages("glmnet")
+
+# We load the libraries we will need throughout the project:
+library(ggplot2)
+library(dplyr)
+library(e1071)
+library(ggrepel)
+library(kableExtra)
+library(plotly)
+library(caret)
+library(stringi)
+library(randomForest)
+library(glmnet)
+```
+
 ```{r loading}
 library(dplyr)
 data=read.csv("who_data.csv")
@@ -26,7 +52,6 @@ who_data$country_name[who_data$iso3 == "TUR"] <- "Turkey"
 # Predicting Pm10 concentration levels for 2021, using data from different cities in Europe
 
 # Introduction
-
 Throughout this project, we use data relevant to environmental health analysis, focusing on air pollution data from the World Health Organisation.
 The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. We test on pm10 concentration for 2021 for different cities in Europe. We have filtered by European countries as these had the highest amount of data, making our results more interpretable. (Read the 'Introduction'01_Data_and_Introduction' for further justification of this choice of prediction.)
 These predictions could be used to influence policy making to address issues of increasing pm10 concentration levels over time, for example when trying to decide a threshold target similar to the Paris Climate agreement aiming to reduce temperature. 
@@ -66,6 +91,25 @@ prop
 ```
 Hence we have removed 84.7% of our data, so we acknowledge that our models might not be as accurate.
 
+## Limiting covariates 
+
+Following our EDA in assessment 0, we decided to include the following covariates in our model as they demonstrated significance in the prediction of pm10 concentration levels:
+
+- **year** (temporal, numeric, discrete)- this variable is essential in capturing trends in pm10 pollutant levels over time. 
+
+- **no2_concentration** (environmental)- we found this was a key environmental predictor given it is strongly correlated with pm10_concentration, typically demonstrating an association between the pollutant source.
+*We note that this doesn't have a strictly linear relationship so we include non-linear terms in our model to capture this.*
+
+- **latitude/longitude** (spatial)- important indicators of location, which help us to infer regional differences in pm10 pollution patterns. 
+*These are strongly related so we consider their interaction term as a key variable in our linear model. *
+
+- **population/log-population** (demographic, numeric, continuous)-  We include this as an indicator of city size. 
+*Due to its large range and skew, we found using a log transform of this improved our results, so this is also included in our model. *
+
+Coverage variables (pm10_tempcov, no2_tempcov) were excluded since they are related to data completeness rather than directly contributing to prediction.
+Note: We have filtered by european city so can exclude continents, we include 
+-  **country_name** - (categorical), we have filtered by European countries as these had the highest amount of data, making our results more interpretable. While we don't use it directly in our model, we will use it in visualisations of our results.
+
 ## Performance metric 
 
 We read and reviewed a paper discussing various performance metrics in regression models, @performancemetric, the paper outlined RMSE Root mean squared error) and MAE (Mean absolute error) as key metrics to evaluate accuracy between models. 
@@ -74,8 +118,7 @@ MAE provides an effective measure of average prediction error, however it is les
 
 RMSE is less robust than MAE, but penalises larger deviations, making it a better metric for capturing real world generalisability, for example if we chose to extend our models beyond Europe. 
 
-Given our EDA from assessment 0, several cities were identified as outliers, so we focused on RMSE as larger errors in high pollution cities are more 
-impactful in our health setting.
+Given our EDA from assessment 0, several cities were identified as outliers, so we focused on RMSE as larger errors in high pollution cities are more impactful in our health setting.
 
 ## Testing and validation
 To assess the performance of our models reliably and ensure their robustness, we must first split our data into two subsets: a test set and a training set. 
@@ -105,14 +148,14 @@ train_cv= trainControl(method = "cv",number=10)
 
 # Modelling with missingness 
 
-## Random forest
+## 01-Random forest
 
-## Belle model on RF
+## 02- 
 
 
 # Modelling without missingness 
 
-## Linear regression (with regularisation)
+## 03- Linear regression (with regularisation)
 
 In this section, we use linear regression to model pm10 concentration across European cities using several explanatory factors such as no2 concentration, population, and geographic features such as longitude and latitude. 
 We then extend our regression exploration to Ridge, LASSO, and Elastic Net to address potential multicollinearity and improve predictive performance. We evaluate our model's performance using k-fold cross-validation to train our model, which uses out of sample validation on data from our dataset to assess the generalisation of our model.
@@ -120,25 +163,8 @@ We then extend our regression exploration to Ridge, LASSO, and Elastic Net to ad
 From previous EDA that we carried out in Assessment 0, we found that using the 'openair' package (https://rdocumentation.org/packages/openair/versions/2.19.0) showed a negative linear trend between pm10 concentration and time, suggesting that linear regression is an appropriate modelling approach. 
 
 Linear regression cannot work if we have missing values, so for this we use our clean_europe_data.
+
 ### Model equation
-
-Following our EDA in assessment 0, we decided to include the following covariates in our model as they demonstrated significance in the prediction of pm10 concentration levels:
-
-- **year** (temporal, numeric, discrete)- this variable is essential in capturing trends in pm10 pollutant levels over time. 
-
-- **no2_concentration** (environmental)- we found this was a key environmental predictor given it is strongly correlated with pm10_concentration, typically demonstrating an association between the pollutant source.
-*We note that this doesn't have a strictly linear relationship so we include non-linear terms in our model to capture this.*
-
-- **latitude/longitude** (spatial)- important indicators of location, which help us to infer regional differences in pm10 pollution patterns. 
-*These are strongly related so we consider their interaction term as a key variable in our linear model. *
-
-- **population/log-population** (demographic, numeric, continuous)-  We include this as an indicator of city size. 
-*Due to its large range and skew, we found using a log transform of this improved our results, so this is also included in our model. *
-
-Coverage variables (pm10_tempcov, no2_tempcov) were excluded since they are related to data completeness rather than directly contributing to prediction.
-Note: We have filtered by european city so can exclude continents, we include 
--  **country_name** - (categorical), we have filtered by European countries as these had the highest amount of data, making our results more interpretable. While we don't use it directly in our model, we will use it in visualisations of our results.
-
 Since we have identified our significant covariates, and building upon our EDA by exploring incorporating non-linear relationships, we can give our model using the following equation: 
 
 $$
