@@ -139,15 +139,6 @@ Coverage variables (pm10_tempcov, no2_tempcov) were excluded since they are rela
 Note: We have filtered by european city so can exclude continents, we include 
 -  **country_name** - (categorical), we have filtered by European countries as these had the highest amount of data, making our results more interpretable. While we don't use it directly in our model, we will use it in visualisations of our results.
 
-So applying this we refine our dataset further: 
-```{r further removal}
-clean_data_europe_reg= clean_data_europe %>% 
-select(-iso3, -pm10_tempcov, -pm25_tempcov,-who_region,-no2_tempcov, -type_of_stations)%>%
-  filter(year != 2022)%>% #EDA showed insufficient data for testing for 2022
-  mutate(log_population = log(population)) %>% # EDA showed a transform was a better predictor of results
-  na.omit(europe_data) #lin regression can't have missing data
-```
-
 Since we have identified our significant covariates, and building upon our EDA by exploring incorporating non-linear relationships, we can give our model using the following equation: 
 
 $$
@@ -169,7 +160,7 @@ Using the test/train split we outlined earlier, we use our test_data_clean and c
 ```{r cv}
 library(caret) #We use the package 'caret' that we saw in the workshop 2.3. 
 #now using cv: (we use 10 folds, as we don't have too much data, but it reduces bias)
-modelcv=train(lm_formula_pm10, data = clean_data_europe_reg, method = "lm" ,train_cv)
+modelcv=train(lm_formula_pm10, data = train_data_clean, method = "lm" ,trControl=train_cv)
 
 summary(modelcv$finalModel)
 ```
