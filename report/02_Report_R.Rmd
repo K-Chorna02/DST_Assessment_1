@@ -112,18 +112,16 @@ val_data_clean <- data[-train_index, ]
 ## Linear regression (with regularisation)
 
 In this section, we use linear regression to model pm10 concentration across European cities using several explanatory factors such as no2 concentration, population, and geographic features such as longitude and latitude. 
-To address potential multicollinearity issues, we extend our regression exploration to Ridge, LASSO, and Elastic Net.
-We evaluate our model's performance using k-fold cross-validation on training data (2013–2020) followed by out of sample validation on data from 2021 to assess the generalisation of our model.
+We then extend our regression exploration to Ridge, LASSO, and Elastic Net to address potential multicollinearity and improve predictive performance. We evaluate our model's performance using k-fold cross-validation to train our model, which uses out of sample validation on data from our dataset to assess the generalisation of our model.
 
 From previous EDA that we carried out in Assessment 0, we found that using the 'openair' package (https://rdocumentation.org/packages/openair/versions/2.19.0) showed a negative linear trend between pm10 concentration and time, suggesting that linear regression is an appropriate modelling approach. 
 
+Linear regression cannot work if we have missing values, so for this we use our clean_europe_data.
 ### Model equation
 
 Following our EDA in assessment 0, we decided to include the following covariates in our model as they demonstrated significance in the prediction of pm10 concentration levels:
 
-- **year** (temporal, numeric, discrete )- this variable is essential in capturing trends in pm10 pollutant levels over time.
-We train our model on previous data (2013-2020) and then use out-of-sample testing on 2021 to assess our model's fit.
-*We use a quadratic term to capture curvature the curvature.*
+- **year** (temporal, numeric, discrete)- this variable is essential in capturing trends in pm10 pollutant levels over time. 
 
 - **no2_concentration** (environmental)- we found this was a key environmental predictor given it is strongly correlated with pm10_concentration, typically demonstrating an association between the pollutant source.
 *We note that this doesn't have a strictly linear relationship so we include non-linear terms in our model to capture this.*
