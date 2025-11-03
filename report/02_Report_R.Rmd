@@ -227,26 +227,27 @@ As we can see from the model fit:
 
 Hence, we haven't fitted the optimal model since our assumptions have been violated. Because of this, we expect other models to perform better in our 'artificial competition'.
 
-Now using our model we can use our true pm10 data for 2021 and test: 
+Now using our model we can use our out of sample data to predict pm10 concentration: 
 ```{r predictions}
-test_data_2021$predicted_pm10 <- predict(modelcv, newdata = test_data_2021)
-results_2021 <- data.frame(
-  city = test_data_2021$city,
-  country = test_data_2021$country_name,
-  actual_pm10 = test_data_2021$pm10_concentration,
-  predicted_pm10 = test_data_2021$predicted_pm10)
+# Predict PM10 for all observations in the dataset
+clean_data_europe_reg$predicted_pm10 <- predict(modelcv, newdata = clean_data_europe_reg)
+#now our results:
+results=data.frame(
+  actual_pm10 = clean_data_europe_reg$pm10_concentration,
+  predicted_pm10 = clean_data_europe_reg$predicted_pm10,
+  country = clean_data_europe_reg$country_name)
 ```
 
 ## Model visualisation
-We visualise the relationship between actual pm10 values and predicted pm10 values for European cities in 2021, we have coloured the cities by their corresponding countries: 
+We visualise the relationship between actual pm10 values and predicted pm10 values for European cities, we have coloured the cities by their corresponding countries: 
 
 ```{r visual}
 library(ggplot2)
-ggplot(results_2021, aes(
+ggplot(results, aes(
   x = actual_pm10,y = predicted_pm10,color = country)) +
   geom_point(alpha = 0.8, size = 2) +
-  geom_abline(intercept = 0, slope = 1, color = "black", linetype = "dashed") +geom_smooth(method = "lm", se = FALSE, color = "darkred", linetype = "dotted")+
-  labs(title = "Actual vs Predicted PM10 concentrations for cities in Europe (for 2021)",
+  geom_abline(intercept = 0, slope = 1, color = "black") +geom_smooth(method = "lm", se = FALSE, color = "red")+
+  labs(title = "Actual vs Predicted PM10 concentrations for cities in Europe", 
     x = "Actual PM10 concentration",y = "Predicted PM10 concentration",
     color = "Country"
   ) +
@@ -279,24 +280,28 @@ $\alpha$.
 ```{r ridge, echo=FALSE}
 set.seed(21)
 #first we try ridge regression
-ridge_model =train(lm_formula_pm10,data = train_data,method = "glmnet",
-  trControl = trainControl(method = "cv", number = 5),
+ridge_model <- train(lm_formula_pm10,data = clean_data_europe_reg,method = "glmnet",
+  trControl = trainControl(method = "cv", number = 10),
   tuneGrid = expand.grid(alpha = 0,lambda = seq(0.0001, 1, length = 50)))
 
 #now LASSO:
-lasso_model= train(lm_formula_pm10,data = train_data,
-  method = "glmnet",trControl = trainControl(method = "cv", number = 5),
+lasso_model <- train(lm_formula_pm10,data = clean_data_europe_reg,
+  method = "glmnet",trControl = trainControl(method = "cv", number = 10),
   tuneGrid = expand.grid(alpha = 1,lambda = seq(0.0001, 1, length = 50)))
 
 #and elastic net:
-elastic_model <- train(lm_formula_pm10,data = train_data,
-method = "glmnet",trControl = trainControl(method = "cv", number = 5),
+elastic_model <- train(lm_formula_pm10,data = clean_data_europe_reg,
+method = "glmnet",trControl = trainControl(method = "cv", number = 10),
   tuneGrid = expand.grid(alpha = seq(0, 1, length = 10),lambda = seq(0.0001, 1, length = 50)))
 
-#so now predicting for 2021:
-test_data_2021$predicted_pm10_ridge <- predict(ridge_model, newdata = test_data_2021)
-test_data_2021$predicted_pm10_lasso <- predict(lasso_model, newdata = test_data_2021)
-test_data_2021$predicted_pm10_elastic= predict(elastic_model, newdata = test_data_2021)
+#so now predicting:
+comparison <- rbind(
+  Linear = postResample(results_2021$predicted_pm10, results_2021$actual_pm10),
+  Ridge = postResample(test_data_2021$predicted_pm10_ridge, test_data_2021$pm10_concentration),
+  LASSO = postResample(test_data_2021$predicted_pm10_lasso, test_data_2021$pm10_concentration),
+  Elastic=postResample(test_data_2021$predicted_pm10_elastic, test_data_2021$pm10_concentration)
+)
+comparison
 
 #we combine these to see:
 best_params <- data.frame(
