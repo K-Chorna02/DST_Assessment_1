@@ -53,11 +53,11 @@ who_data$country_name[who_data$iso3 == "TUR"] <- "Turkey"
 
 # Introduction
 Throughout this project, we use data relevant to environmental health analysis, focusing on air pollution data from the World Health Organisation.
-The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. We test on pm10 concentration for 2021 for different cities in Europe. We have filtered by European countries as these had the highest amount of data, making our results more interpretable. (Read the 'Introduction'01_Data_and_Introduction' for further justification of this choice of prediction.)
+The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. We test on 90% of our data and then a final validation set for each model. We have filtered by European cities as these had the highest amount of data, making our results more interpretable. (Read the 'Introduction'01_Data_and_Introduction' for further justification of this choice of prediction.)
 These predictions could be used to influence policy making to address issues of increasing pm10 concentration levels over time, for example when trying to decide a threshold target similar to the Paris Climate agreement aiming to reduce temperature. 
 Having cleaned and prepared our data in the previous section, we will filter by European cities before examining which models we implemented for our predictive modelling and comparing their performance. We will also discuss the suitability of different performance measures such as RMSE for continuous predictions.
 
-This modelling approach could generalise to other pollutants or continents if we were to train on the region specific data, something we wil ldiscuss further in our conclusions.
+This modelling approach could generalise to other pollutants or continents if we were to train on the region specific data, something we will discuss further in our conclusions.
  
 ## Predictive modelling 
 Before we delve into the different models we used, we still have an issue with the missingness of our data. Although we have identified that European cities are more easily analysed since they have a sufficient amount of their data, some predictive models won't work with any missing data at all. 
@@ -93,15 +93,13 @@ Hence we have removed 84.7% of our data, so we acknowledge that our models might
 
 ## Limiting covariates 
 
-Following our EDA in assessment 0, we decided to include the following covariates in our model as they demonstrated significance in the prediction of pm10 concentration levels:
+Following from previous EDA we have carried out, we decided to include the following covariates in our model as they demonstrated significance in the prediction of pm10 concentration levels:
 
 - **year** (temporal, numeric, discrete)- this variable is essential in capturing trends in pm10 pollutant levels over time. 
 
 - **no2_concentration** (environmental)- we found this was a key environmental predictor given it is strongly correlated with pm10_concentration, typically demonstrating an association between the pollutant source.
-*We note that this doesn't have a strictly linear relationship so we include non-linear terms in our model to capture this.*
 
 - **latitude/longitude** (spatial)- important indicators of location, which help us to infer regional differences in pm10 pollution patterns. 
-*These are strongly related so we consider their interaction term as a key variable in our linear model. *
 
 - **population/log-population** (demographic, numeric, continuous)-  We include this as an indicator of city size. 
 *Due to its large range and skew, we found using a log transform of this improved our results, so this is also included in our model. *
@@ -118,7 +116,7 @@ MAE provides an effective measure of average prediction error, however it is les
 
 RMSE is less robust than MAE, but penalises larger deviations, making it a better metric for capturing real world generalisability, for example if we chose to extend our models beyond Europe. 
 
-Given our EDA from assessment 0, several cities were identified as outliers, so we focused on RMSE as larger errors in high pollution cities are more impactful in our health setting.
+Given our EDA that we carried out, there was a wide range in pollutant concentration for cities in Europe, so some datapoints could be interpreted as outliers. Because of this, we focused on RMSE as larger errors in high pollution cities are more impactful in our health setting.
 
 ## Testing and validation
 To assess the performance of our models reliably and ensure their robustness, we must first split our data into two subsets: a test set and a training set. 
@@ -151,7 +149,7 @@ train_cv= trainControl(method = "cv",number=10)
 ## 01- Random forest
 
 ## 02- XGboost
-
+This model can be found in '03 Report_Python', we discuss our findings in the conclusion
 
 # Modelling without missingness 
 
@@ -160,20 +158,23 @@ train_cv= trainControl(method = "cv",number=10)
 In this section, we use linear regression to model pm10 concentration across European cities using several explanatory factors such as no2 concentration, population, and geographic features such as longitude and latitude. 
 We then extend our regression exploration to Ridge, LASSO, and Elastic Net to address potential multicollinearity and improve predictive performance. We evaluate our model's performance using k-fold cross-validation to train our model, which uses out of sample validation on data from our dataset to assess the generalisation of our model.
 
-From previous EDA that we carried out in Assessment 0, we found that using the 'openair' package (https://rdocumentation.org/packages/openair/versions/2.19.0) showed a negative linear trend between pm10 concentration and time, suggesting that linear regression is an appropriate modelling approach. 
+From previous EDA that we carried out, we found that using the 'openair' package (https://rdocumentation.org/packages/openair/versions/2.19.0) showed a negative linear trend between pm10 concentration and time, suggesting that linear regression is an appropriate modelling approach. 
 
 Linear regression cannot work if we have missing values, so for this we use our clean_europe_data.
 
 ### Model equation
-Since we have identified our significant covariates, and building upon our EDA by exploring incorporating non-linear relationships, we can give our model using the following equation: 
+Since we have identified our significant covariates, we now consider transforms and non-linear relationships to create additional variables that can capture more information within the model: 
+*no2_concentration: this doesn't have a strictly linear relationship so we include non-linear terms in our model to capture this.*
+
+*longitude and latitude: These are strongly related so we consider their interaction term as a key variable in our linear model. *
+
+So we can give our model using the following equation: 
 
 $$
 \text{PM}_{10,i} = \beta_0 + \beta_1 \cdot \text{Year}_i+\beta_2 \cdot \text{Year}_i^2 +\beta_3 \cdot\text{No2}_i+\beta_4 \cdot\text{No2}_i^2+\beta_5 \cdot\text{No2}_i^3+\beta_6 \cdot \text{population}+\beta_7 \cdot \text{log_population}+\beta_8 \cdot \text{longitude}+\beta_9 \cdot \text{latitude}+\beta_{10} \cdot \text{longitude}* \text{latitude}_i+ \varepsilon_i,
 $$
 
 where $\varepsilon_i \sim N(0,\sigma^2)$.
-
-Hence we define our model as follows: 
 ```{r model eq}
 #using our formula aforementioned:
 lm_formula_pm10=pm10_concentration ~ poly(year, 2)+poly(no2_concentration,3) +population+log_population+ longitude+latitude+ latitude*longitude
@@ -199,7 +200,7 @@ The estimated coefficients can be interpreted as follows:
 -   **year**: $\hat{\beta}_1 = -64.95$ , $\hat{\beta}_2 = -10.31$, we notice both coefficients of year are negative , suggesting a decrease in pm10 concentrations over time. In the linear term, we have that by holding other variables constant, by increasing the year by 1, we expect a decrease of 64.95 per unit of pm_10 concentration. As we saw from our EDA, pm10 concentration appeared to have a negative correlation with year, so this supports our negative relationship (which we could interpret as being perhap due to policy changes). This variable is very statistically significant.
 The quadratic term still indicated a decline over time, however this was smaller (10.31), suggesting the rate of decline has decreased in more recent years. This variable did not appear to be statistically significant, but still had a very low p-value.
 
--   **no2_concentration**: $\hat{\beta}_3 =138.5,\hat{\beta}_4 =163.7,,\hat{\beta}_5 =216.6$. 
+-   **no2_concentration**: $\hat{\beta}_3 =138.5,\hat{\beta}_4 =163.7,\hat{\beta}_5 =216.6$. 
 All of these coefficients were positive and statistically significant, demonstrating a strong non-linear relationship between pollutant concentrations. 
 For the linear term, we see that for every increase by 1 unit of no2, pm10 is expected to increase by 138.5 units, assuming the other factors remain unchanged. Similarly for the quadratic and cubic terms, we see a large increase in pm10 is expected from every unit increase in no2 concentrations. This could be due to the fact no2 and pm10 may have the same pollutant sources (e.g traffic). 
     
@@ -341,7 +342,7 @@ In our figure we have included the 1:1 reference line (perfect prediction line) 
 
 We can see from our figure that most of our data is clustered around the lower left of our data set, suggesting many of our pm10 pollution levels are lower in value. There are many points evenly distributed around the 1:1 reference line, suggesting a fairly good model fit, with the exception of a few outliers in cities located in France, Israel, Ireland and Italy. These may be due to political or meteorological conditions that we haven't considered in our model. We could consider removing these city outlier points, as it would increase the model performance, however this would also introduce a bias to our model. We also note these outlier points are for higher pollution levels, so removing these would lead to a bias towards lower pm10 concentrations.
 
-Overall our model appears to provide a reasonably good prediction for a variety of cities in Europe, however with outliers this has slightly skewed the prediction accuracy of our model for higher level pm10 concentrations. 
+Overall our model appears to provide a reasonably good prediction for a variety of cities in Europe, however we identify a few outliers which have slightly skewed the prediction accuracy of our model for higher level pm10 concentrations. 
 
 
 ### Conclusions for Linear regression
