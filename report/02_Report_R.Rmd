@@ -53,7 +53,7 @@ europe_data= who_data %>%
 
 ```{r data set NAs removed} 
 clean_data_europe= europe_data %>% select(-pm25_concentration) %>%
-na.omit(europe_data)
+na.omit()
 ```
 
 Note: we can see how many rows were removed, there is a key difference between how many NA values were removed and how many rows were removed, as some rows may contain multiple missing values. 
