@@ -79,7 +79,7 @@ RMSE is less robust than MAE, but penalises larger deviations, making it a bette
 Given our EDA from assessment 0, several cities were identified as outliers, so we focused on RMSE as larger errors in high pollution cities are more 
 impactful in our health setting.
 
-#Testing and validation
+## Testing and validation
 To assess the performance of our models reliably and ensure their robustness, we must first split our data into two subsets: a test set and a training set. 
 - The **training set** consists of 90% all data from our cleaned Europe data, we will use this to perform our k-fold CV. 
 
