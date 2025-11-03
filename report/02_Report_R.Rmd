@@ -88,17 +88,18 @@ To assess the performance of our models reliably and ensure their robustness, we
 
 We use the validation set to see how well our model performs generally, which we could use to predict pm10 concentration for other citities. We note that our models may perform well within Europe, but may not generalise as well outside of this continent.
 
-```{r model}
+```{r model split}
 set.seed(2)
+library(caret)
 #for models that include missing data 
-train_index<- createDataPartition(europe_data$pm10_concentration, p = 0.9, list = FALSE) #we create a 90-10 split
-train_data<- data[train_index, ]
-test_data<- data[-train_index, ]
+train_index <- sample(seq_len(nrow(europe_data)), size = 0.9 * nrow(europe_data)) #creating a 90-10 split
+train_data <- europe_data[train_index, ]
+test_data  <- europe_data[-train_index, ]
 
 #for models that don't include missing data
 train_index_clean <- createDataPartition(clean_data_europe$pm10_concentration, p = 0.9, list = FALSE) #we create a 90-10 split
-train_data_clean <- data[train_index, ]
-test_data_clean <- data[-train_index, ]
+train_data_clean <- data[train_index_clean, ]
+test_data_clean <- data[-train_index_clean, ]
 
 #now using cross validation:
 train_cv= trainControl(method = "cv",number=10)
