@@ -81,6 +81,7 @@ impactful in our health setting.
 
 ## Testing and validation
 To assess the performance of our models reliably and ensure their robustness, we must first split our data into two subsets: a test set and a training set. 
+
 - The **training set** consists of 90% all data from our cleaned Europe data, we will use this to perform our k-fold CV. 
 
 - Our **validation set** is 10% of the data that we randomly select which we use for out of sample validation later. 
@@ -92,12 +93,12 @@ set.seed(2)
 #for models that include missing data 
 train_index<- createDataPartition(europe_data$pm10_concentration, p = 0.9, list = FALSE) #we create a 90-10 split
 train_data<- data[train_index, ]
-val_data<- data[-train_index, ]
+test_data<- data[-train_index, ]
 
 #for models that don't include missing data
 train_index_clean <- createDataPartition(clean_europe_data$pm10_concentration, p = 0.9, list = FALSE) #we create a 90-10 split
 train_data_clean <- data[train_index, ]
-val_data_clean <- data[-train_index, ]
+test_data_clean <- data[-train_index, ]
 ```
 
 # Modelling with missingness 
@@ -153,28 +154,23 @@ $$
 
 where $\varepsilon_i \sim N(0,\sigma^2)$.
 
-## Test/train
-Using the test/train split we outlined earlier:
-
-```{r model}
-#splitting into train/test
-library(caret) #We use the package 'caret' that we saw in the workshop 2.3. 
-set.seed(2)
-train_data=subset(clean_data_europe_reg, year != 2021)
-test_data_2021=subset(clean_data_europe_reg, year == 2021)
-
+Hence we define our model as follows: 
+```{r model eq}
 #using our formula aforementioned:
 lm_formula_pm10=pm10_concentration ~ poly(year, 2)+poly(no2_concentration,3) +population+log_population+ longitude+latitude+ latitude*longitude
 ```
 
-Now we use cross validation to train our linear regression model:
+## Test/train
+
+Using the test/train split we outlined earlier, we use our test_data_clean and carry out cross validation on this data set:
+
 ```{r cv}
+library(caret) #We use the package 'caret' that we saw in the workshop 2.3. 
 #now using cv: (we use 10 folds, as we don't have too much data, but it reduces bias)
-modelcv=train(lm_formula_pm10, data = train_data, method = "lm" ,trControl=trainControl(method = "cv",number=10))
+modelcv=train(lm_formula_pm10, data = clean_data_europe_reg, method = "lm" ,trControl=trainControl(method = "cv",number=10))
 
 summary(modelcv$finalModel)
 ```
-
 
 The estimated coefficients can be interpreted as follows:
 
