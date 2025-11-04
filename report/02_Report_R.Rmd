@@ -480,6 +480,13 @@ Hence, we haven't fitted the optimal model since our assumptions have been viola
 
 After carrying out a literature review on how to improve our model, we came across a paper on using  @CHEN2019104934, where we build upon the ideas of linear regression by regularising, this means we penalise larger coefficients in order to control the variance and reduce the effects of multicollinearity. 
 
+It works by adding the second term in our linear regression:
+
+$$
+\min_{\boldsymbol{\beta}} \sum_{i=1}^{n} (y_i - \mathbf{x}_i^\top \boldsymbol{\beta})^2
++ \lambda \left[(1-\alpha)\sum_{j}\beta_j^2 + \alpha\sum_{j}|\beta_j|\right]
+$$
+
 Where $\lambda$ controls the shrinkage, and $\alpha$ indicates the method. 
 There are a variety of ways of doing this, we focus on the following methods: 
 
