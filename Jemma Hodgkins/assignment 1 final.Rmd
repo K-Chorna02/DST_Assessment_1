@@ -8,7 +8,7 @@ date: "2025-11-04"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-copied code
+copied code to get data
 
 
 ```{r libraries}
@@ -101,7 +101,6 @@ lm_formula_pm10=pm10_concentration ~ poly(year, 2)+poly(no2_concentration,3) +po
 
 modelcv=train(lm_formula_pm10, data = train_data_clean, method = "lm" ,trControl=train_cv)
 
-#summary(modelcv$finalModel)
 ```
 
 
