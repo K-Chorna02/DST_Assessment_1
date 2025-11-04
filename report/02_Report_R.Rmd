@@ -171,7 +171,7 @@ European cities. Data regarding air quality is complex. It can contain
 non-linear patterns, interactions between pollutants and regional
 differences. A single regression model may struggle to capture these
 elements, but Random Forests can adapt to these complexities without
-requiring strong assumptions about the data's structure.@...
+requiring strong assumptions about the data's structure. @ibm
 
 # 2. R andom Forest Model
 ```{r cross val RF}
@@ -193,8 +193,7 @@ concentration** + **population**
 `pm10_concentration ~ no2_concentration + pm25_concentraion + population`
 
 -   The algorithm automatically handled missing values using the `na.roughfix`
-    function that was found from :
-    [3] '<https://stackoverflow.com/questions/8370455/how-to-use-random-forests-in-r-with-missing-values>"
+    function that was found from @stack1.
 -   The default of 500 decision trees was used.
 -   When building each tree, the `randomForest` algorithm only considers
     a random subset of the available predictors at each split.
@@ -279,8 +278,7 @@ In order to assess the performance of my chosen model submission, the
 Random Forest model, our group has chosen to use the **Root Mean Squared
 Error (RSME)**.
 
-We have implemented this using code adapted from:[4]
-"<https://stackoverflow.com/questions/60685866/how-do-i-find-out-the-rmse-of-a-random-forest-in-r>"
+We have implemented this using code adapted from @stack2.
 
 ```{r}
 RSME <- sqrt(mean((test_data$pm10_concentration - test_data$predicted_pm10)^2, na.rm = TRUE))
@@ -302,8 +300,7 @@ how much each variable contributed to the models prediction.
 
 This is calculated using how much each variable reduces the model's
 prediction error across all trees in the forest. We used code adapted
-from
-[5]"<https://stats.stackexchange.com/questions/153663/how-to-get-the-most-important-variables-in-random-forests-in-r>")
+from @stackEx.
 
 ```{r}
 # extract feature importance from the Random Forest Model 
