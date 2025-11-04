@@ -278,12 +278,19 @@ In order to assess the performance of my chosen model submission, the
 Random Forest model, our group has chosen to use the **Root Mean Squared
 Error (RSME)**.
 
-We have implemented this using code adapted from @stack2.
+We have found the RSME and R^2 using code adapted from @stack2 and @datacamp (respectively).
 
 ```{r}
 RSME <- sqrt(mean((test_data$pm10_concentration - test_data$predicted_pm10)^2, na.rm = TRUE))
 
 cat("Root Mean Squared Error (RMSE):", round(RSME, 3), "\n")
+
+#calculate R^2 
+
+model_r2 <- lm(test_data$predicted_pm10 ~ test_data$pm10_concentration)
+R2 <- summary(model_r2)$r.squared
+cat("R-squared (R²):", round(R2, 3), "\n")
+
 ```
 
 -    The value of **2.826** tells us that, on average, the Random Forest's predicted PM10 concentrations differ from the true observed values by about **2.8$\mu g/m^3$**.
@@ -291,6 +298,11 @@ cat("Root Mean Squared Error (RMSE):", round(RSME, 3), "\n")
 -    Given that the typical range of PM10 concentrations across Europe regions is often between 10-40$\mu g/m^3$, a value of 2.83 is a relatively small error. 
 
 -    This results supports the visual evidence from the scatter plot, confirming that the model's performance is strong and reliable.
+
+-    Additionally, an $R^{2}$ value of **0.883** tells us that the model explains 88.3% of the variation in PM10 concentrations.
+
+-    This again suggests a strong fit between predicted and actual values.
+
 
 # 6. Analyse Feature Importance 
 
