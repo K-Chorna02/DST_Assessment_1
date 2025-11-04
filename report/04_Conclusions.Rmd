@@ -26,6 +26,19 @@ However, it is worth noting that although we chose RMSE as our chosen metric, th
 ## Our results 
 We each explored a seperate model to optimize a predictive model to predict PM10 concentration for cities in Europe. Our final modelling findings can be found in the table below: 
 
+model_results <- data.frame(
+  Model = c("Random Forest", "XGBoost","Huber (Robust Regression)", "Support Vector Regression (RBF)", "Linear regression (LASSO)"),
+  RMSE = c(2.83,., 6.737082,4.265415,6.608980),
+  MAE = c(NA,., 4.642810,4.265415,4.726464),     # Random Forest MAE not provided
+  R2 = c(0.883,., 0.4127671,0.70404,0.4366445)
+)
+
+
+# Display the table nicely
+library(kableExtra)
+model_results %>%
+  kbl(caption = "Comparison of Model Performance Metrics") %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed"))
 
 As we can see models that use missingness performed better than those that remove it, this is to be expected as they have more information.
 
