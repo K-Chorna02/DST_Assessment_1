@@ -26,10 +26,17 @@ However, it is worth noting that although we chose RMSE as our chosen metric, th
 # Comparing our models : 
 
 ## Missing data
+The 2 models we used that could handle missing data were XGBoost and RandomForests: 
 
+```{r}
+
+
+```
 
 
 ## Removing missing data
+
+We removed missing data and used Linear regression with regularisation, robust regression and Support Vector machines, the results can be found as follows : 
 
 
 
