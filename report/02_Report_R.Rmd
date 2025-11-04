@@ -23,6 +23,8 @@ if(!require("stringi")) install.packages("stringi")
 if(!require("randomForest")) install.packages("randomForest")
 if(!require("glmnet")) install.packages("glmnet")
 if(!require("kernlab")) install.packages("kernlab")
+if(!require("MASS")) install.packages("MASS")
+if(!require("Metrics")) install.packages("Metrics")
 
 # We load the libraries we will need throughout the project:
 library(ggplot2)
@@ -36,6 +38,8 @@ library(stringi)
 library(randomForest)
 library(glmnet)
 library(kernlab)
+library(MASS)
+library(Metrics)
 ```
 
 ```{r loading, include=FALSE}
@@ -423,22 +427,22 @@ summary(modelcv$finalModel)
 The estimated coefficients can be interpreted as follows:
 
 -   **Intercept**: $\hat{\beta}_0 = 40.91$\
-    This represents the expected pm10 concentration for Europe when all other variables are zero. Since this situation is not realistic, the intercept is not of direct interest.
+    This represents the expected PM10 concentration for Europe when all other variables are zero. Since this situation is not realistic, the intercept is not of direct interest.
     
--   **year**: $\hat{\beta}_1 = -64.95$ , $\hat{\beta}_2 = -10.31$, we notice both coefficients of year are negative , suggesting a decrease in pm10 concentrations over time. In the linear term, we have that by holding other variables constant, by increasing the year by 1, we expect a decrease of 64.95 per unit of pm_10 concentration. As we saw from our EDA, pm10 concentration appeared to have a negative correlation with year, so this supports our negative relationship (which we could interpret as being perhap due to policy changes). This variable is very statistically significant.
+-   **year**: $\hat{\beta}_1 = -64.95$ , $\hat{\beta}_2 = -10.31$, we notice both coefficients of year are negative , suggesting a decrease in pm10 concentrations over time. In the linear term, we have that by holding other variables constant, by increasing the year by 1, we expect a decrease of 64.95 per unit of PM10 concentration. As we saw from our EDA, PM10 concentration appeared to have a negative correlation with year, so this supports our negative relationship (which we could interpret as being perhap due to policy changes). This variable is very statistically significant.
 The quadratic term still indicated a decline over time, however this was smaller (10.31), suggesting the rate of decline has decreased in more recent years. This variable did not appear to be statistically significant, but still had a very low p-value.
 
 -   **no2_concentration**: $\hat{\beta}_3 =138.5,\hat{\beta}_4 =163.7,\hat{\beta}_5 =216.6$. 
 All of these coefficients were positive and statistically significant, demonstrating a strong non-linear relationship between pollutant concentrations. 
-For the linear term, we see that for every increase by 1 unit of no2, pm10 is expected to increase by 138.5 units, assuming the other factors remain unchanged. Similarly for the quadratic and cubic terms, we see a large increase in pm10 is expected from every unit increase in no2 concentrations. This could be due to the fact no2 and pm10 may have the same pollutant sources (e.g traffic). 
+For the linear term, we see that for every increase by 1 unit of NO2, pm10 is expected to increase by 138.5 units, assuming the other factors remain unchanged. Similarly for the quadratic and cubic terms, we see a large increase in PM10 is expected from every unit increase in NO2 concentrations. This could be due to the fact NO2 and PM10 may have the same pollutant sources (e.g traffic). 
     
 -   **population**: $\hat{\beta}_6 =-2.935 \cdot 10^{-8} $. This is negative but contributes to a very small change, we also see a very high p-value suggesting population is not statistically significant in the prediction of pm10 concentration.
 
--   **log_population**: $\hat{\beta}_7 =0.385$ \ This is statistically significant to prediction of pm10 concentration. Holding other variables constant, additional increase in the transformed population by 1 unit is associated with an increase of about $0.385$ units in pm10 concentration. This can be interpreted as more densely populated cities tend to have higher levels of pm10 concentrations, which we would expect.
+-   **log_population**: $\hat{\beta}_7 =0.385$ \ This is statistically significant to prediction of pm10 concentration. Holding other variables constant, additional increase in the transformed population by 1 unit is associated with an increase of about $0.385$ units in pm10 concentration. This can be interpreted as more densely populated cities tend to have higher levels of PM10 concentrations, which we would expect.
     
--   **Longitude**: $\hat{\beta}_8 =-0.0856$ This small negative value is statistically significant to our model. Interpretation is more difficult spatially, but a negative longitude variable suggests eastern European cities contribute more to pm10 concentrations.
+-   **Longitude**: $\hat{\beta}_8 =-0.0856$ This small negative value is statistically significant to our model. Interpretation is more difficult spatially, but a negative longitude variable suggests eastern European cities contribute more to PM10 concentrations.
   
--   **Latitude**: $\hat{\beta}_9=-5.61$ This is more statistically significant than longitude and shows that pm10 concentrations decrease as latitude increases, this corresponds to northern cities experiencing less pm10 concentration. 
+-   **Latitude**: $\hat{\beta}_9=-5.61$ This is more statistically significant than longitude and shows that PM10 concentrations decrease as latitude increases, this corresponds to northern cities experiencing less PM10 concentration. 
    
 -   **Longitude X Latitude** $\hat{\beta}_{10}=0.01093$ This is more useful as longitude and latitude are strongly related. This has a very small p-value so we can infer that the interaction term is a statistically significant predictor. This helps us interpret spatially and geographically where pm10 concentrations are expected to be higher/lower.
 
@@ -448,9 +452,9 @@ For the linear term, we see that for every increase by 1 unit of no2, pm10 is ex
 modelcv$results
 ```
 
-We saw from our model that the cross-validated linear regression achieved an R^2 of 0.4908 on the training set. This means that the model explains 49.08% of the variance in pm10 concentrations across European cities.
+We saw from our model that the cross-validated linear regression achieved an RMSE of 6.621294 on the training set. This means that on average, the model’s predictions of PM10 concentrations deviate from the observed values by about $6.621 \mu g/m^3$, this is a relatively high error, suggesting linear regression struggles to capture more complex relationships within the data. 
 
-From the model summary we saw that most predictors were statistically significant, demonstrating that variables such as no2 and spatial coordinates contribute to the explanation of pm10 concentrations. The only exception being population, which showed no significant effect. However log population showed to be a statistically significant variable, so by transforming we were able to show population density does contribute to pm10 concentration. 
+From the model summary we saw that most predictors were statistically significant, demonstrating that variables such as NO2 and spatial coordinates contribute to the explanation of PM10 concentrations. The only exception being population, which showed no significant effect. However log population showed to be a statistically significant variable, so by transforming we were able to show population density does contribute to PM10 concentration. 
 
 ### Model assumptions
 
@@ -520,20 +524,19 @@ After running the code for our Ridge, LASSO and Elastic Net, we obtained the abo
 
 Evidently, the values we can see in our table are all are fairly similar, so evaluating the performance of each model is more nuanced than a clearly defined optimal model.
 
-We see that the Ridge method has the lowest RMSE (Root Mean Squared Error) of 5.042155, meaning it produces the smallest average prediction error on the unseen 2021 data, making it potentially more accurate.
+We see that the LASSO method has the lowest RMSE (Root Mean Squared Error) of 6.608980, meaning it produces the smallest average prediction error on the unseen data, making it potentially more accurate.
 
-Regarding the R^2 value, we can see the Linear model has the highest value, suggesting that when we tested our model on our 2021 data, it explained 39.255% of the variation in pm10 concentrations across the european cities.However, compared to Ridge the difference is very small.
+Regarding the R^2 value, we can see the Linear model has the highest value, suggesting that when we tested our model on our unseen data, it explained 43.87% of the variation in pm10 concentrations across the European cities. 
 
-Meanwhile the method with the smallest MAE (Mean Absolute Error) is the Ridge method once again. Meaning we can deduce that overall this method deviates the least from our true pm10 concentrations.
+Meanwhile the method with the smallest MAE (Mean Absolute Error) is the Elastic Net method. Meaning we can deduce that Elastic Net deviates the least from our true PM10 concentrations.
 
-Hence we can conclude that the Ridge regularisation linear regression is the best model for our regression, although the differences are very small, it strikes the best balance between bias and variance which provides slightly better predictive accuracy. 
-
+Since we have chosen to focus on RMSE, we conclude the LASSO method performed the best sa it minimised the prediction error. Most of the differences between our methods are only marginal, but we note different methods perform better with differnt metrics. So one single metric may b=not be representative of all method's performance. 
 ### Model visualisation:
 
 Now using our model we can use our out of sample data to predict pm10 concentration: 
 ```{r predictions}
 # Predict PM10 for all observations in the dataset
-test_data_clean$predicted_pm10 <- predict(elastic_model, newdata = test_data_clean)
+test_data_clean$predicted_pm10 <- predict(lasso_model, newdata = test_data_clean)
 #now our results:
 results=data.frame(
   actual_pm10 = test_data_clean$pm10_concentration,
@@ -560,14 +563,14 @@ ggplot(results, aes(
 
 In our figure we have included the 1:1 reference line (perfect prediction line) in black, and our regression line in red.
 
-We can see from our figure that most of our data is clustered around the lower left of our data set, suggesting many of our pm10 pollution levels are lower in value. There are many points evenly distributed around the 1:1 reference line, suggesting a fairly good model fit, with the exception of a few outliers in cities located in France, Israel, Ireland and Italy. These may be due to political or meteorological conditions that we haven't considered in our model. We could consider removing these city outlier points, as it would increase the model performance, however this would also introduce a bias to our model. We also note these outlier points are for higher pollution levels, so removing these would lead to a bias towards lower pm10 concentrations.
+We can see from our figure that most of our data is clustered around the lower left of our data set, suggesting many of our pm10 pollution levels are lower in value. There are many points evenly distributed around the 1:1 reference line, suggesting a fairly good model fit, with the exception of a few outliers in cities located in France, Israel, Ireland and Italy. These may be due to political or meteorological conditions that we haven't considered in our model. We could consider removing these city outlier points, as it would increase the model performance, however this would also introduce a bias to our model. We also note these outlier points are for higher pollution levels, so removing these would lead to a bias towards lower PM10 concentrations.
 
 Overall our model appears to provide a reasonably good prediction for a variety of cities in Europe, however we identify a few outliers which have slightly skewed the prediction accuracy of our model for higher level pm10 concentrations. 
 
 
 ### Conclusions for Linear regression
 
-To conclude our section on linear regression, we found our initial cross validated linear regression model wasn't very accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using Ridge, LASSO and Elastic net. Although these didn't provide too much improvement (due to the fact there was less multicolinearity between variables than we anticipated), the Ridge method appeared to provide the best results to optimise our linear regresion model. 
+To conclude our section on linear regression, we found our initial cross validated linear regression model wasn't very accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using Ridge, LASSO and Elastic net. Although these didn't provide too much improvement (due to the fact there was less multicolinearity between variables than we anticipated), the LASSO method appeared to provide the best results to optimise our linear regresion model. 
 
 We also used transforms of variables, such as log population and polynomial terms for both the no2 concentration and year variables. This helped to capture the non-linearity aspects of our model. However we did find that our model assumptions were violated for the linearity assumption, suggesting further transforms or more explanatory variables should be included to improve our model.
 
@@ -634,20 +637,13 @@ where $y_i$ is the actual value, $\hat{y}_i$ is the predicted value from the mod
 
 
 ```{r}
-library(MASS)
-library(dplyr)
-library(Metrics)  # For RMSE and MAE
-
-# --- Data ---
-data <- train_data_clean  # your clean training dataset
+data <- train_data_clean  # clean training dataset
 lm_formula_pm10 <- pm10_concentration ~ poly(year, 2) + poly(no2_concentration, 3) +
                  population + log_population + longitude + latitude + latitude*longitude
 
 set.seed(42)
 k <- 10
 folds <- sample(1:k, nrow(data), replace = TRUE)
-
-# --- Function for CV for lrm() function---
 cv_rlm <- function(formula, data, psi_function, k_folds) {
   rmse <- rep(NA, k_folds)
   r2   <- rep(NA, k_folds)
@@ -668,16 +664,13 @@ cv_rlm <- function(formula, data, psi_function, k_folds) {
     # R²: 1 - SS_res / SS_tot
     ss_res <- sum((actual - pred)^2)
     ss_tot <- sum((actual - mean(actual))^2)
-    r2[i]  <- 1 - ss_res/ss_tot
-  }
+    r2[i]  <- 1 - ss_res/ss_tot}
   
   data.frame(
     Model = deparse(substitute(psi_function)),
     RMSE = mean(rmse),
     MAE  = mean(mae),
-    R2   = mean(r2)
-  )
-}
+    R2   = mean(r2))}
 ```
 
 
@@ -699,7 +692,7 @@ Comparing these three models, LMS is the most resistance, LTS is moderately resi
 Similarly as in robust regression we cannot use the lqs() function from the MASS library within train() hence we create a function for CV which uses the lqs() function.
 
 
-```{r}
+```{r, include=FALSE}
 set.seed(42)
 k <- 10
 folds <- sample(1:k, nrow(data), replace = TRUE)
@@ -719,19 +712,16 @@ cv_lqs <- function(formula, data, method_type, k_folds) {
     rmse[i] <- sqrt(mean((actual - pred)^2))
     mae[i]  <- mean(abs(actual - pred))
 
-    # R²
+    # R^2
     ss_res <- sum((actual - pred)^2)
     ss_tot <- sum((actual - mean(actual))^2)
-    r2[i]  <- 1 - (ss_res/ss_tot)
-  }
+    r2[i]  <- 1 - (ss_res/ss_tot)}
 
   data.frame(
     Model = paste("lqs", method_type, sep="_"),
     RMSE = mean(rmse),
     MAE  = mean(mae),
-    R2   = mean(r2)
-  )
-}
+    R2   = mean(r2))}
 
 ```
 
@@ -897,7 +887,6 @@ We get the result printed for the best hyperparamers.
 
 Here the metrics are extracted and printed so we can then compare it against models with different kernels.
 ```{r}
-
 rmse_poly <- svr_poly_model_final$results$RMSE
 r2_poly   <- svr_poly_model_final$results$Rsquared
 mae_poly  <- svr_poly_model_final$results$MAE
@@ -1015,5 +1004,8 @@ cat("Test RMSE (RBF SVR):", rmse_rbf_test, "\n")
 cat("Test R² (RBF SVR):", r2_rbf_test, "\n")
 cat("Test MAE (RBF SVR):", mae_rbf_test, "\n")
 ```
+
+
+We now Turn our attention to our '04_Conclusions' file, where we can see how our models compared against one another. 
 # References
 
