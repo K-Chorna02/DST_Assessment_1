@@ -820,6 +820,7 @@ The linear kernel is defined as $K(x_i, x_j) = x_i^\top x_j$. This kernel implie
 We use the linear kernel due to its simplicity, serving as a baseline before introducing more complex kernels such as polynomial or RBF. It allows us to directly evaluate how well a linear model can capture the relationship between features and the target variable.
 
 ```{r}
+set.seed(2)
 # Fit linear SVR on training data
 svr_linear_model <- train(
   pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
