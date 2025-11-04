@@ -303,8 +303,8 @@ We find that the RBF kernel outperforms the linear and polynomial kernels across
 We will now use the out- of sample data to see how well the RBF SVR performs on unseen data and evaluate its generalisation ability. 
 
 ```{r}
-# Predict on Test Data
-predictions_rbf_test <- predict(svr_rbf_model_final, newdata = test_data)
+# Predict on Test Data (unseen)
+predictions_rbf_test <- predict(svr_rbf_model_final, newdata = test_data_clean)
 
 ```
 
@@ -312,17 +312,17 @@ predictions_rbf_test <- predict(svr_rbf_model_final, newdata = test_data)
 We plot Actual vs Predicted for each city to visually assess the performance of the RBF SVR model. 
 ```{r}
 # Plot actual vs predicted
-p_rbf_test <- ggplot(test_data, aes(
+p_rbf_test <- ggplot(test_data_clean, aes(
   x = pm10_concentration,
   y = predictions_rbf_test,
-  text = paste0("City: ", test_data$city, "<br>Country: ", test_data$country_name)
+  text = paste0("City: ", test_data_clean$city, "<br>Country: ", test_data_clean$country_name)
 )) +
   geom_point(color = "darkgreen", alpha = 0.6) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
   labs(
     x = "Actual PM10",
     y = "Predicted PM10",
-    title = ""
+    title = "Actual vs Predicted for out of sample data"
   ) +
   theme_minimal()
 ggplotly(p_rbf_test, tooltip = "text")
@@ -334,10 +334,10 @@ A lot of points lie close to the dashed red line, indicating that the model pred
 ```{r}
 # Evaluation 
 # Calculate test set metrics
-rmse_rbf_test <- sqrt(mean((test_data$pm10_concentration - predictions_rbf_test)^2))
-mae_rbf_test  <- mean(abs(test_data$pm10_concentration - predictions_rbf_test))
-r2_rbf_test   <- 1 - sum((test_data$pm10_concentration - predictions_rbf_test)^2) / 
-                     sum((test_data$pm10_concentration - mean(test_data$pm10_concentration))^2)
+rmse_rbf_test <- sqrt(mean((test_data_clean$pm10_concentration - predictions_rbf_test)^2))
+mae_rbf_test  <- mean(abs(test_data_clean$pm10_concentration - predictions_rbf_test))
+r2_rbf_test   <- 1 - sum((test_data_clean$pm10_concentration - predictions_rbf_test)^2) / 
+                     sum((test_data_clean$pm10_concentration - mean(test_data_clean$pm10_concentration))^2)
 cat("Test RMSE (RBF SVR):", rmse_rbf_test, "\n")
 cat("Test R² (RBF SVR):", r2_rbf_test, "\n")
 cat("Test MAE (RBF SVR):", mae_rbf_test, "\n")

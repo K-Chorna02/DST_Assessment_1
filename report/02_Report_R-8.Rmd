@@ -2,8 +2,12 @@
 title: "02- Report"
 author: "Minnie Jacobs, Kateryna Chorna, Jemma Hodgkins, Isobelle Clemmens, Gracie Belmonte"
 date: "2025-10-25"
-output: html_document
-bibliography: references_lit-2.bib
+output:
+  html_document:
+    toc: true
+    theme: united
+    number_sections: true
+bibliography: references_lit.bib
 ---
 
 ```{r libraries, include=FALSE}
@@ -19,6 +23,7 @@ if(!require("stringi")) install.packages("stringi")
 if(!require("randomForest")) install.packages("randomForest")
 if(!require("glmnet")) install.packages("glmnet")
 
+
 # We load the libraries we will need throughout the project:
 library(ggplot2)
 library(dplyr)
@@ -32,7 +37,7 @@ library(randomForest)
 library(glmnet)
 ```
 
-```{r loading}
+```{r loading, include=FALSE}
 library(dplyr)
 data=read.csv("who_data.csv")
 who_data=subset(data,select=-c(X,X.1,X.2,X.3,who_ms))
@@ -146,7 +151,7 @@ train_cv= trainControl(method = "cv",number=10)
 
 # Modelling with missingness 
 
-## 01- Random forest
+## Model: Random forest
 
 The use of decision trees is both simple and intuitive. They provide a
 straight forward, visual way to represent how different variables
@@ -174,7 +179,7 @@ differences. A single regression model may struggle to capture these
 elements, but Random Forests can adapt to these complexities without
 requiring strong assumptions about the data's structure.@ibm
 
-### 2. Random Forest Model
+### Random Forest Model
 ```{r cross val RF}
 #USE CROSS VALIDATION
 # Define formula 
@@ -182,7 +187,7 @@ rf_formula <- pm10_concentration ~ pm25_concentration + no2_concentration +
                population + latitude + longitude
 ```
 
-### 3. Train the Random Forest Model
+### Train the Random Forest Model
 
 This section implemented the Random Forest algorithm, adapted from @statology
 
@@ -224,7 +229,7 @@ The model output shows:
 -   However, we note that the **model's effectiveness** will instead be assessed using
     predictions on the 10% unseen test data.
 
-### 4. Visualising our predictions
+###  Visualising our predictions
 
 -   In this section, the fitted Random Forest model is used to **predict
     PM10 concentrations** .
@@ -260,7 +265,7 @@ ggplot(test_data, aes( x = pm10_concentration, y = predicted_pm10)) +
 ```
 
 
-### Comments on the scatter plot
+#### Comments on the scatter plot
 
 -   The majority of the points cluster closely around the red line (perfect prediction line), suggesting a good alignment of the predicted and observed values. 
 
@@ -272,7 +277,7 @@ ggplot(test_data, aes( x = pm10_concentration, y = predicted_pm10)) +
 
 -   Overall, this is a good plot and shows a strong predictive performance of the Random Forest model.
 
-### 5. Evaluate Model Preformance with a metric 
+###  Evaluate Model Preformance with a metric 
 
 In order to assess the performance of my chosen model submission, the
 Random Forest model, our group has chosen to use the **Root Mean Squared
@@ -303,7 +308,7 @@ cat("R-squared (R²):", round(R2, 3), "\n")
 
 -    This again suggests a strong fit between predicted and actual values.@datacamp
 
-# 6. Analyse Feature Importance 
+### Analyse Feature Importance 
 
 A useful strength of the Random Forest model is that they can provide a
 direct measure of **feature Importance**, in other words, quantifying
@@ -339,7 +344,7 @@ ggplot(importance_df,aes(x = reorder(Feature, IncNodePurity), y = IncNodePurity)
 ```
 
 
-### Discussion of the graph
+#### Discussion of the graph
 
 -   The x-axis represents the importance score `IncNodePurity`, which is
     the amount each variable improves the model's ability to make
@@ -347,13 +352,13 @@ ggplot(importance_df,aes(x = reorder(Feature, IncNodePurity), y = IncNodePurity)
 -   The y-axis lists the predictors: `longitude`, `latitude`,
     `pm25_concentration`, `no2_concentration` and `population`.
 
-### Interpretation
+#### Interpretation
 
 -   `Longitude` was the most influential variable, the model relies
     heavily on a location's east-west position to predict PM10. This suggests the presence of clear geographic patterns in air pollution across Europe, possibly linked to regional industrial activity or atmospheric conditions. 
 -   `population` has the lowest importance score, implying that population density plays a minor role once environmental and geographical variables are considered.
 
-### 7. Conclusion
+### Conclusion
 
 In conclusion, by combining multiple decision trees to capture
 non-linear patterns between air pollution, geography and population, the
@@ -366,12 +371,12 @@ Overall, we can confidently say that the Random Forest proved to be a robust and
 
 
 
-## 02- XGboost
+## Model: XGboost
 This model can be found in '03 Report_Python', we discuss our findings in the conclusion
 
 # Modelling without missingness 
 
-## 03- Linear regression (with regularisation)
+## Model: Linear regression (with regularisation)
 
 In this section, we use linear regression to model pm10 concentration across European cities using several explanatory factors such as no2 concentration, population, and geographic features such as longitude and latitude. 
 We then extend our regression exploration to Ridge, LASSO, and Elastic Net to address potential multicollinearity and improve predictive performance. We evaluate our model's performance using k-fold cross-validation to train our model, which uses out of sample validation on data from our dataset to assess the generalisation of our model.
@@ -398,7 +403,7 @@ where $\varepsilon_i \sim N(0,\sigma^2)$.
 lm_formula_pm10=pm10_concentration ~ poly(year, 2)+poly(no2_concentration,3) +population+log_population+ longitude+latitude+ latitude*longitude
 ```
 
-## Test/train
+### Test/train
 
 Using the test/train split we outlined earlier, we use our test_data_clean and carry out cross validation on this data set:
 
@@ -432,7 +437,7 @@ For the linear term, we see that for every increase by 1 unit of no2, pm10 is ex
    
 -   **Longitude X Latitude** $\hat{\beta}_{10}=0.01093$ This is more useful as longitude and latitude are strongly related. This has a very small p-value so we can infer that the interaction term is a statistically significant predictor. This helps us interpret spatially and geographically where pm10 concentrations are expected to be higher/lower.
 
-## Model fit
+### Model fit
 
 ```{r eval results}
 modelcv$results
@@ -442,7 +447,7 @@ We saw from our model that the cross-validated linear regression achieved an R^2
 
 From the model summary we saw that most predictors were statistically significant, demonstrating that variables such as no2 and spatial coordinates contribute to the explanation of pm10 concentrations. The only exception being population, which showed no significant effect. However log population showed to be a statistically significant variable, so by transforming we were able to show population density does contribute to pm10 concentration. 
 
-## Model assumptions
+### Model assumptions
 
 We test our model's fit on the linear regression assumptions:
 ```{r pred}
@@ -462,7 +467,7 @@ As we can see from the model fit:
 
 Hence, we haven't fitted the optimal model since our assumptions have been violated. Because of this, we expect other models to perform better in our 'artificial competition'.
 
-## Extending our linear regression by regularising
+### Extending our linear regression by regularising
 
 After carrying out a literature review on how to improve our model, we came across a paper on using  @CHEN2019104934, where we build upon the ideas of linear regression by regularising, this means we penalise larger coefficients in order to control the variance and reduce the effects of multicollinearity. 
 
@@ -518,7 +523,7 @@ Meanwhile the method with the smallest MAE (Mean Absolute Error) is the Ridge me
 
 Hence we can conclude that the Ridge regularisation linear regression is the best model for our regression, although the differences are very small, it strikes the best balance between bias and variance whuch provides slightly better predictive accuracy. 
 
-## Model visualisation:
+### Model visualisation:
 
 Now using our model we can use our out of sample data to predict pm10 concentration: 
 ```{r predictions}
@@ -573,7 +578,7 @@ Including these variables could help to address the assumption violations we fou
 
 
 
-# 04- Robust regression
+## Model: Robust regression
 
 ```{r robust-regression-comparison, message=FALSE, warning=FALSE}
 
@@ -673,10 +678,223 @@ cv_results <- cv_results %>%
 cv_results
 ```
 
-# 05- Support vector machines
+## Model: Support vector machines
 
 
+Support Vector Machines are supervised learning models used for both classification and regression problems. They work by finding an optimal boundary, known as a hyperplane, that best separates or predicts data points. The observations that lie closest to this boundary are called support vectors, and they are the most influential in defining the model.
 
+There are two main types of Support Vector Machines:\
+- Support Vector Classification (SVC) which used when the target variable is categorical\
+- Support Vector Regression (SVR) which is used when the target variable is continuous
 
+Since we aim to predict PM₁₀ pollutant concentrations, which are continuous values, we use the Support Vector Regression (SVR) model. This model finds a smooth function that predicts PM₁₀ levels but SVR cannot handle missing values directly, so rows containing NA's must be removed or imputed before training the model.
+
+We will try different kernels in SVR to see which works best for predicting PM₁₀ levels.
+
+1.  Linear Kernel
+2.  Polynomial Kernel
+3.  RBF (Radial Basis Function) Kernel
+
+We will start with simple kernels and increase complexity to find the best model for PM₁₀ predictions.
+
+### Linear Kernal SVR
+
+In Linear SVR, we assume a linear relationship between the input features $x_i \in \mathbb{R}^p$ and the target variable $y_i \in \mathbb{R}$. The model seeks a hyperplane $f(x) = w^\top x + b$, that predicts $y$ with minimal error by minimizing the norm $|w|^2$ subject to an $\varepsilon$-insensitive loss.
+
+The linear kernel is defined as $K(x_i, x_j) = x_i^\top x_j$. This kernel implies that no nonlinear transformation of the input space is performed, so the SVR estimates a linear function of the inputs.
+
+We use the linear kernel due to its simplicity, serving as a baseline before introducing more complex kernels such as polynomial or RBF. It allows us to directly evaluate how well a linear model can capture the relationship between features and the target variable.
+
+```{r}
+# Fit linear SVR on training data
+svr_linear_model <- train(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+  data = train_data_clean,
+  method = "svmLinear",     # Linear SVM regression
+  trControl = train_cv,
+  preProcess = c("center", "scale")  # scale features
+)
+svr_linear_model
+```
+The code fits a linear SVR model using the train function from the caret package. It applies 10-fold cross-validation specified earlier for performance evaluation and standardizes the input features by centering and scaling. This is done so each has a mean of 0 and a standard deviation of 1, ensuring that all inputs contribute equally to the model.
+
+#### Model Evaluation
+
+Here the metrics are extracted and printed so we can then compare it against models with different kernels.
+
+```{r}
+rmse_linear <- svr_linear_model$results$RMSE
+r2_linear   <- svr_linear_model$results$Rsquared
+mae_linear  <- svr_linear_model$results$MAE
+
+# Print all metrics
+cat("RMSE (Linear SVR):", rmse_linear, "\n")
+cat("R² (Linear SVR):", r2_linear, "\n")
+cat("MAE (Linear SVR):", mae_linear, "\n")
+```
+These results show that the linear model explains a moderate amount of the variance in the target variable but still leaves a fair amount of error, suggesting that a linear function might not fully capture the structure in the data. We’ll use this to compare to polynomial and RBF kernels to see if they can model the nonlinear relationships more effectively.
+
+### Polynomial Kernel SVR
+
+In Polynomial Kernel SVR, the model captures nonlinear relationships between the covariates $x_i \in \mathbb{R}^p$ and the target $y_i \in \mathbb{R}$. The polynomial kernel is defined as $K(x_i, x_j) = (\gamma \, x_i^\top x_j + r)^d,$ where $d$ is the polynomial degree, $\gamma$ is a scaling factor, and $r$ is a constant term. This kernel maps the inputs into a higher-dimensional space, allowing the SVR to fit a nonlinear function while solving a linear problem in the transformed space.\
+We use the polynomial kernel to evaluate whether modeling nonlinear interactions improves predictive performance compared to the linear kernel.
+
+```{r}
+# Define 3 fold cv trainControl for hyperparameter tuning
+tune_cv <- trainControl(
+  method = "cv",   # k-fold cross-validation
+  number = 3,      # 3-fold CV for hyperparameter tuning
+  search = "grid",  # Search over the hyperparameter grid
+  verboseIter = TRUE
+)
+# Fit polynomial SVR model with hyperparameter tuning using 3-fold CV
+svr_poly_model <- train(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+  data = train_data_clean,  
+  method = "svmPoly",       # Polynomial SVM regression
+  trControl = tune_cv,      # 3-fold CV for hyperparameter tuning
+  tuneGrid = expand.grid(
+    degree = c(2, 3, 4),     # polynomial degree (d)
+    scale  = c(0.01, 0.1, 1),# scaling factor for kernel
+    C      = c(0.1, 1)   # cost parameter (C)
+  ),
+  preProcess = c("center", "scale")  # Scale and center the data
+)
+
+```
+We use hyperparameter tuning, which is the process of selecting the best values for model parameters that are not learned directly from the training data but control the model’s behaviour and complexity. This is done to ensure the model generalises well to new data, avoiding underfitting or overfitting.
+
+We fit a polynomial SVR model using 3-fold cross-validation for hyperparameter tuning. The training data is split into multiple folds, and the model is trained on all but one fold while the remaining fold is used for validation. This process is repeated for each fold, and the performance metrics are averaged to provide a more reliable estimate of the model’s generalisation ability. The model searches over a grid of hyperparameters: the degree of the polynomial controls the flexibility of the kernel, the scale parameter adjusts the scaling of the inner product in the kernel, and C is the cost parameter that balances model complexity against tolerance for prediction errors. Here, r is not included, which is acceptable because the input features are standardised.
+```{r}
+
+# After tuning, fit the final model using 10-fold CV with the best parameters
+svr_poly_model_final <- train(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+  data = train_data_clean,  # your training dataset
+  method = "svmPoly",       # Polynomial SVM regression
+  trControl = train_cv,     # 10-fold CV for final model training
+  tuneGrid = svr_poly_model$bestTune,  # Use the best hyperparameters found in tuning
+  preProcess = c("center", "scale")  # Optional: scale and center the data
+)
+svr_poly_model_final
+```
+We get the result printed for the best hyperparamers 
+#### Model Evaluation
+Here the metrics are extracted and printed so we can then compare it against models with different kernels.
+```{r}
+
+rmse_poly <- svr_poly_model_final$results$RMSE
+r2_poly   <- svr_poly_model_final$results$Rsquared
+mae_poly  <- svr_poly_model_final$results$MAE
+
+# Print all metrics
+cat("RMSE (Polynomial SVR):", rmse_poly, "\n")
+cat("R² (Polynomial SVR):", r2_poly, "\n")
+cat("MAE (Polynomial SVR):", mae_poly, "\n")
+
+```
+Our model is already better than the linear one for all the metrics used. 
+### RBF (Radial Basis Function) Kernel SVR
+Similarly, in the RBF Kernel SVR, the kernel is defined as  
+$K(x_i, x_j) = \exp(-\gamma \|x_i - x_j\|^2),$ where \(\gamma > 0\) controls the smoothness of the resulting function by determining how rapidly the influence of a training example decreases with distance. Unlike the polynomial kernel, which models global interactions through polynomial terms, the RBF kernel captures localized nonlinear relationships by implicitly mapping the inputs into an infinite-dimensional feature space. We use the RBF kernel to evaluate whether modeling such localized nonlinear effects further improves predictive performance compared to both the linear and polynomial kernels.
+```{r}
+
+# Fit RBF SVR with hyperparameter tuning (3-fold CV)
+svr_rbf_model <- train(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,  # formula
+  data = train_data_clean,   # training data
+  method = "svmRadial",      # RBF SVM regression
+  trControl = tune_cv,       # 3-fold CV for tuning hyperparameters
+    tuneGrid = expand.grid(
+    sigma = c(0.01, 0.1, 0.5),  # Range of sigma values to tune
+    C  = c(1, 5, 10)         # Range of cost values to tune
+),       # Hyperparameter grid
+)
+```
+We use hyperparameter tuning again for this kernel to identify the best combination of parameters that yield the highest predictive performance on unseen data. We tune parameters such as the regularization parameter \(C\), the kernel coefficient \(\gamma\), and, for the polynomial kernel, the degree \(d\). In the R implementation, the parameter `sigma` corresponds to the inverse of the kernel width in the theoretical RBF kernel, where \(\gamma = 1 / (2\sigma^2)\). Thus, tuning `sigma` in the model effectively controls the same behavior as tuning \(\gamma\), influencing how tightly the model fits the data. we use cross-validation to prevent overfitting and the optimal parameter set is then used to train the final SVR model.
+```{r}
+#Final model with best parameters using 10-fold CV
+svr_rbf_model_final <- train(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+  data = train_data_clean,      # training data
+  method = "svmRadial",         # RBF SVM regression
+  trControl = train_cv,  # 10-fold CV for final model training
+  tuneGrid = svr_rbf_model$bestTune,         # Use the best hyperparameters from tuning
+  preProcess = c("center", "scale")  # scale features
+)
+svr_rbf_model_final 
+```
+We then train the final RBF SVR model using the optimal hyperparameters obtained from tuning and apply 10-fold cross-validation to  get a more reliable model that works better on unseen data, and we center and scale the predictors for numerical stability. 
+#### Model Evaluation
+Here the metrics are extracted and printed so we can then compare it against models with different kernels.
+```{r}
+rmse_rbf <- svr_rbf_model_final $results$RMSE
+r2_rbf   <- svr_rbf_model_final $results$Rsquared
+mae_rbf  <- svr_rbf_model_final $results$MAE
+
+# Print all metrics
+cat("RMSE (RBF SVR):", rmse_rbf, "\n")
+cat("R² (RBF SVR):", r2_rbf, "\n")
+cat("MAE (RBF SVR):", mae_rbf, "\n")
+
+```
+This is better than polynomial kernel. We will discuss the results of all kernels in the next section.
+
+### Conclusion: SVR Model Evaluation on out of sample data
+We will now evaluate the performance of each SVR model using metrics such as RMSE, MAE, and \(R^2\). This will allow us to compare the predictive accuracy of the linear, polynomial, and RBF kernels, and determine which kernel provides the best fit for our data.
+
+```{r}
+#metrics for each kernel
+results <- data.frame(
+  Model = c("RBF SVR", "Polynomial SVR", "Linear SVR"),
+  RMSE = c(rmse_rbf, rmse_poly, rmse_linear),
+  R2 = c(r2_rbf, r2_poly, r2_linear),
+  MAE = c(mae_rbf, mae_poly, mae_linear)
+)
+print(results)
+```
+We find that the RBF kernel outperforms the linear and polynomial kernels across all metrics, which is expected given its able to capture complex, nonlinear relationships in the data.
+
+We will now use the out- of sample data to see how well the RBF SVR performs on unseen data and evaluate its generalisation ability. 
+
+```{r}
+# Predict on Test Data (unseen)
+predictions_rbf_test <- predict(svr_rbf_model_final, newdata = test_data_clean)
+
+```
+
+#### Plot Actual vs Predicted
+We plot Actual vs Predicted for each city to visually assess the performance of the RBF SVR model. 
+```{r}
+# Plot actual vs predicted
+p_rbf_test <- ggplot(test_data_clean, aes(
+  x = pm10_concentration,
+  y = predictions_rbf_test,
+  text = paste0("City: ", test_data_clean$city, "<br>Country: ", test_data_clean$country_name)
+)) +
+  geom_point(color = "darkgreen", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Actual PM10",
+    y = "Predicted PM10",
+    title = "Actual vs Predicted for out of sample data"
+  ) +
+  theme_minimal()
+ggplotly(p_rbf_test, tooltip = "text")
+
+```
+A lot of points lie close to the dashed red line, indicating that the model predicts PM10 concentrations well for many cities. However, some points are quite far from the line, meaning that the model struggles to accurately predict PM10 for certain locations.
+#### Model Evaluation
+```{r}
+# Evaluation 
+# Calculate test set metrics
+rmse_rbf_test <- sqrt(mean((test_data_clean$pm10_concentration - predictions_rbf_test)^2))
+mae_rbf_test  <- mean(abs(test_data_clean$pm10_concentration - predictions_rbf_test))
+r2_rbf_test   <- 1 - sum((test_data_clean$pm10_concentration - predictions_rbf_test)^2) / 
+                     sum((test_data_clean$pm10_concentration - mean(test_data_clean$pm10_concentration))^2)
+cat("Test RMSE (RBF SVR):", rmse_rbf_test, "\n")
+cat("Test R² (RBF SVR):", r2_rbf_test, "\n")
+cat("Test MAE (RBF SVR):", mae_rbf_test, "\n")
+```
 # References
 
