@@ -9,12 +9,12 @@ output: html_document
 
 We used RMSE as our chosen Performance metric as it took into account outliers, which may be significant in our data, while also ensuring accuracy of our model. 
 The RMSE is given by : 
+
 $$
 \text{RMSE} = \sqrt{ \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2 }
 $$
 Where y_i is the...
 \hat{y_i} are our predicted ... 
-
 
 The differing RMSE values can be seen below for our different models: 
 
@@ -23,24 +23,42 @@ The differing RMSE values can be seen below for our different models:
 
 However, it is worth noting that although we chose RMSE as our chosen metric, there is value in other metrics that aren't captured solely by the RMSE. 
 
-# Comparing our models : 
-
-## Missing data
-The 2 models we used that could handle missing data were XGBoost and RandomForests: 
+## Our results 
+We each explored a seperate model to optimize a predictive model to predict PM10 concentration for cities in Europe. Our final modelling findings can be found in the table below: 
 
 ```{r}
+model_results <- data.frame(
+  Model = c("Random Forest", "XGBoost","Huber (Robust Regression)", "Support Vector Regression (RBF)", "Linear regression (LASSO)"),
+  RMSE = c(2.83,1, 6.737082,4.265415,6.608980),
+  MAE = c(NA,1, 4.642810,4.265415,4.726464),     # Random Forest MAE not provided
+  R2 = c(0.883,1, 0.4127671,0.70404,0.4366445)
+)
+
+
+# Display the table nicely
+library(kableExtra)
+model_results %>%
+  kbl(caption = "Comparison of Model Performance Metrics") %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed"))
 
 
 ```
+As we can see models that use missingness performed better than those that remove it, this is to be expected as they have more information.
+
+The Random Forest model provided the best results across metrics, explaining nearly 88% of the variance in pm10 concentration levels and maintaining a low RMSE, demonstrating its suitability for handling complex, nonlinear relationships and partial missing data. XGBoost also performd very well on our out of sample data , ...
+
+Among our regression based approaches, 
 
 
-## Removing missing data
 
-We removed missing data and used Linear regression with regularisation, robust regression and Support Vector machines, the results can be found as follows : 
+Our Support Vector machine achieved a strong performance across all evaluation metrics (RMSE, MAE, and R²). This confirms that nonlinear, kernel-based approaches can better capture the intricate spatial and environmental patterns underlying PM10 concentrations compared to linear models.
+
+To improve ... 
+
 
 
 
 
 # Conclusions
-Hence, we can conclude that our model with the lowest RMSE, hence ... 
+Hence, we can conclude ...
 
