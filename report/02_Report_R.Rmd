@@ -844,7 +844,7 @@ These results show that the linear model explains a moderate amount of the varia
 In Polynomial Kernel SVR, the model captures nonlinear relationships between the covariates $x_i \in \mathbb{R}^p$ and the target $y_i \in \mathbb{R}$. The polynomial kernel is defined as $K(x_i, x_j) = (\gamma \, x_i^\top x_j + r)^d,$ where $d$ is the polynomial degree, $\gamma$ is a scaling factor, and $r$ is a constant term. This kernel maps the inputs into a higher-dimensional space, allowing the SVR to fit a nonlinear function while solving a linear problem in the transformed space.\
 We use the polynomial kernel to evaluate whether modeling nonlinear interactions improves predictive performance compared to the linear kernel.
 
-```{r}
+```{r, include=FALSE}
 # Define 3 fold cv trainControl for hyperparameter tuning
 tune_cv <- trainControl(
   method = "cv",   # k fold cross validation
@@ -902,7 +902,7 @@ Our model is already better than the linear one for all the metrics used.
 ### RBF (Radial Basis Function) Kernel SVR
 
 Similarly, in the RBF Kernel SVR, the kernel is defined as $K(x_i, x_j) = \exp(-\gamma \|x_i - x_j\|^2),$ where \(\gamma > 0\) controls the smoothness of the resulting function by determining how rapidly the influence of a training example decreases with distance. Unlike the polynomial kernel, which models global interactions through polynomial terms, the RBF kernel captures localized nonlinear relationships by implicitly mapping the inputs into an infinite-dimensional feature space. We use the RBF kernel to evaluate whether modeling such localized nonlinear effects further improves predictive performance compared to both the linear and polynomial kernels.
-```{r}
+```{r, include=FALSE}
 
 # Fit RBF SVR with hyperparameter tuning (3-fold CV)
 svr_rbf_model <- train(
