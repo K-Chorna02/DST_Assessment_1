@@ -1,6 +1,6 @@
 ---
 title: "02- Report"
-author: "Minnie"
+author: "Minnie Jacobs, Kateryna Chorna, Jemma Hodgkins, Isobelle Clemmens, Gracie Belmonte"
 date: "2025-10-25"
 output: html_document
 bibliography: references_lit-2.bib
