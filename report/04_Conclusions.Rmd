@@ -94,7 +94,7 @@ Although we carried out LASSO regularisation on linear regression to improve gen
 # WHO data context
 
 The best-performing models, particularly Random Forest, could be applied to estimate missing PM10 concentrations in European cities, helping identify areas where monitoring is limited but pollution risk remains high.
-This is particularly relevant if we are trying to ... 
+This is particularly relevant if this data is used for insights into potential risks these pollutants pose; informative conclusions about pollutant risks can be made even in less developed regions even when data collection is rare.
 
 
 # Conclusions
