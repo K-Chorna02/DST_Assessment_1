@@ -4,6 +4,7 @@ author: "Minnie"
 date: "2025-10-25"
 output: html_document
 ---
+
 ```{r libraries, include=FALSE}
 # Install packages if needed
 if(!require("ggplot2")) install.packages("ggplot2")
@@ -16,62 +17,91 @@ library(dplyr)
 library(kableExtra)
 ```
 
+
+
 # Performance metric
+
 Throughout our report we recorded the RMSE, the R^2 and the MAE. 
-The R^2 is a good indicator of ... 
+The RMSE is a good indicator of how large the prediction errors are on average, penalizing larger errors more heavily than smaller ones. This makes it sensitive to outliers and particularly useful when larger deviations are undesirable, such as our environmental context.
 
 $$
-\text{RMSE} = \sqrt{ \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2 }
+\mathrm{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}
 $$
 
-Where y_i is the...
-\hat{y_i} are our predicted ... 
+Where $y_i$ are the observed values and $\hat{y_i}$ are our predicted values.
 
-The MAE ... 
+
+The MAE measures the average absolute difference between predictions and actual observations, treating all errors equally regardless of direction or magnitude, this is less relevant to our environmental context.
 
 $$
-\text{RMSE} = \sqrt{ \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2 }
+\text{MAE} = \frac{1}{n} \sum_{i=1}^{n}{| \hat{y_i} - {y}_i | }
 $$
 
 
-However, it is worth noting that although we chose RMSE as our chosen metric, there is value in other metrics that aren't captured solely by the RMSE. 
+The R^2 measures the proportion of variance in the dependent variable explained by the model
+
+$$
+\text{R^2} = 1-\frac{SS_{residuals}} {SS_{total}}
+$$
+Where $SS_{residuals}$ is the sum of squared errors between predictions and actual values
+And $SS_{totals}$ is the total variance in the observed data.
+
+We used RMSE as our chosen performance metric as it took into account outliers, which may be significant in our data, while also ensuring accuracy of our model. 
+However, it is worth noting that although we chose RMSE as our chosen metric, there is value in other metrics that aren't captured solely by the RMSE, so we have included all three in our comparison tables, but focus our final discussion on the RMSE of each method. 
 
 ## Our results 
-We each explored a seperate model to optimize a predictive model to predict PM10 concentration for cities in Europe. Our final modelling findings can be found in the table below: 
 
-```{r}
-model_results <- data.frame(
-  Model = c("Random Forest", "XGBoost","Huber (Robust Regression)", "Support Vector Regression (RBF)", "Linear regression (LASSO)"),
-  RMSE = c(2.83,1, 6.737082,4.265415,6.608980),
-  MAE = c(NA,1, 4.642810,4.265415,4.726464),     # Random Forest MAE not provided
-  R2 = c(0.883,1, 0.4127671,0.70404,0.4366445)
-)
+We each explored a seperate model to optimize a predictive model to predict PM10 concentration for cities in Europe. We focused our modelling on 2 key areas: 
 
+- *Models with missingness*, our results are displayed below for all performance metrics to 3dp:
 
-# Display the table nicely
-library(kableExtra)
-model_results %>%
-  kbl(caption = "Comparison of Model Performance Metrics") %>%
+```{r w missingness}
+model_results_NAs <- data.frame(
+  Model = c("Random Forest", "XGBoost"),
+  RMSE = c(2.830,4.832),
+  MAE = c(1.786,2.684),
+  R2 = c(0.883,0.818))
+
+#table 
+model_results_NAs %>%
+  kbl(caption = "Comparison of performance metrics for models with missingness ") %>%
   kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed"))
-
-
 ```
-As we can see models that use missingness performed better than those that remove it, this is to be expected as they have more information.
-
+We can clearly see Random Forest has a much smaller RMSE than XGBoost ...
 The Random Forest model provided the best results across metrics, explaining nearly 88% of the variance in pm10 concentration levels and maintaining a low RMSE, demonstrating its suitability for handling complex, nonlinear relationships and partial missing data. XGBoost also performd very well on our out of sample data , ...
 
-Among our regression based approaches, 
 
 
 
-Our Support Vector machine achieved a strong performance across all evaluation metrics (RMSE, MAE, and R²). This confirms that nonlinear, kernel-based approaches can better capture the intricate spatial and environmental patterns underlying PM10 concentrations compared to linear models.
+- *Models without missingness:*
+ 
+```{r without missingness}
+model_results <- data.frame(
+  Model = c("Support Vector Regression (RBF)", "Linear regression (LASSO)","Robust Regression(Huber)"),
+RMSE = c(4.265,6.609,6.737),
+  MAE = c(4.265, 4.726,4.643),  
+  R2 = c(0.704, 0.437, 0.413))
 
-To improve ... 
+model_results %>%
+  kbl(caption = "Comparison of performance metrics for models without missingness") %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed"))
 
+```
 
+As we can see models that use missingness performed better than those that remove it, this is to be expected as they have more information.
+Among our regression-based approaches, the Support Vector Regression (RBF kernel) achieved the strongest performance across all metrics, confirming that nonlinear, kernel-based approaches can better capture the intricate spatial and environmental patterns underlying PM10 concentrations compared to purely linear models.
+
+# WHO data context
 
 
 
 # Conclusions
-Hence, we can conclude ...
+Hence, we can conclude that the Random Forest achieved the lowest RSME (**2.83$\mu g/m^3$**), clearly out performing XGBoost (**4.83$\mu g/m^3$**), SVM (**4.27$\mu g/m^3$**), Ridge Regression (**6.61$\mu g/m^3$**) and the Robust Huber model (**6.74$\mu g/m^3$**). This winning performance is due to number of reasons. 
+
+-    Unlike the other models (excluding XGBoost), Random Forest could train on data containing NA's using `na.roughfix`. This means the model initially had access to more complete information, allowing the model to learn broader patterns in the data, hence creating more accurate predictions. 
+
+-    Our PM10 levels depend on interacting environmental, spatial and demographic predictors. The geographical variables like `latitude` and `longitude` interact in complex, non-linear ways. Hence these patterns mean that linear and SVM models (with linear kernels) struggle to fit the data accurately. However, as we have seen, the Random Forest can model these interactions effectively, thus proving a more successful model than the others. 
+
+-  Random Forest outperforms XGBoost due to it's built in randomness. Each tree in a Random Forest is built using a random subset of both points and predictor variables, meaning no two trees will use the same data, reducing correlation. XGBoost, in contrast, builds trees sequentially to correct previous errors. This introduces less randomness and a higher risk of over fitting when dataset has missing values, as seen in this air quality project.  
+-  Overall, the Random Forests' ability to handle missing values and non-linear patterns along with it's flexibility, randomness and robustness made it the most reliable and realistic model for forecasting PM10 concentrations across Europe.
 
