@@ -835,8 +835,6 @@ svr_linear_model
 ```
 The code fits a linear SVR model using the train function from the caret package. It applies 10-fold cross-validation specified earlier for performance evaluation and standardizes the input features by centering and scaling. This is done so each has a mean of 0 and a standard deviation of 1, ensuring that all inputs contribute equally to the model.
 
-#### Model Evaluation
-
 Here the metrics are extracted and printed so we can then compare it against models with different kernels.
 
 ```{r}
@@ -859,17 +857,17 @@ We use the polynomial kernel to evaluate whether modeling nonlinear interactions
 ```{r}
 # Define 3 fold cv trainControl for hyperparameter tuning
 tune_cv <- trainControl(
-  method = "cv",   # k-fold cross-validation
-  number = 3,      # 3-fold CV for hyperparameter tuning
-  search = "grid",  # Search over the hyperparameter grid
-  verboseIter = TRUE
+  method = "cv",   # k fold cross validation
+  number = 3,      # 3 fold CV for hyperparameter tuning
+  search = "grid",  
+  verboseIter = FALSE
 )
-# Fit polynomial SVR model with hyperparameter tuning using 3-fold CV
+# Fit polynomial SVR model with hyperparameter tuning using 3 fold CV defined abpve
 svr_poly_model <- train(
   pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
   data = train_data_clean,  
   method = "svmPoly",       # Polynomial SVM regression
-  trControl = tune_cv,      # 3-fold CV for hyperparameter tuning
+  trControl = tune_cv,      # 3 fold CV for hyperparameter tuning
   tuneGrid = expand.grid(
     degree = c(2, 3, 4),     # polynomial degree (d)
     scale  = c(0.01, 0.1, 1),# scaling factor for kernel
@@ -887,16 +885,16 @@ We fit a polynomial SVR model using 3-fold cross-validation for hyperparameter t
 # After tuning, fit the final model using 10-fold CV with the best parameters
 svr_poly_model_final <- train(
   pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
-  data = train_data_clean,  # your training dataset
+  data = train_data_clean,  
   method = "svmPoly",       # Polynomial SVM regression
-  trControl = train_cv,     # 10-fold CV for final model training
-  tuneGrid = svr_poly_model$bestTune,  # Use the best hyperparameters found in tuning
-  preProcess = c("center", "scale")  # Optional: scale and center the data
+  trControl = train_cv,     # 10 fold CV for final model training
+  tuneGrid = svr_poly_model$bestTune,  # using the best hyperparameters found in tuning
+  preProcess = c("center", "scale")  # scale and center the data
 )
 svr_poly_model_final
 ```
-We get the result printed for the best hyperparamers 
-#### Model Evaluation
+We get the result printed for the best hyperparamers.
+
 Here the metrics are extracted and printed so we can then compare it against models with different kernels.
 ```{r}
 
@@ -911,9 +909,10 @@ cat("MAE (Polynomial SVR):", mae_poly, "\n")
 
 ```
 Our model is already better than the linear one for all the metrics used. 
+
 ### RBF (Radial Basis Function) Kernel SVR
-Similarly, in the RBF Kernel SVR, the kernel is defined as  
-$K(x_i, x_j) = \exp(-\gamma \|x_i - x_j\|^2),$ where \(\gamma > 0\) controls the smoothness of the resulting function by determining how rapidly the influence of a training example decreases with distance. Unlike the polynomial kernel, which models global interactions through polynomial terms, the RBF kernel captures localized nonlinear relationships by implicitly mapping the inputs into an infinite-dimensional feature space. We use the RBF kernel to evaluate whether modeling such localized nonlinear effects further improves predictive performance compared to both the linear and polynomial kernels.
+
+Similarly, in the RBF Kernel SVR, the kernel is defined as $K(x_i, x_j) = \exp(-\gamma \|x_i - x_j\|^2),$ where \(\gamma > 0\) controls the smoothness of the resulting function by determining how rapidly the influence of a training example decreases with distance. Unlike the polynomial kernel, which models global interactions through polynomial terms, the RBF kernel captures localized nonlinear relationships by implicitly mapping the inputs into an infinite-dimensional feature space. We use the RBF kernel to evaluate whether modeling such localized nonlinear effects further improves predictive performance compared to both the linear and polynomial kernels.
 ```{r}
 
 # Fit RBF SVR with hyperparameter tuning (3-fold CV)
@@ -941,8 +940,9 @@ svr_rbf_model_final <- train(
 )
 svr_rbf_model_final 
 ```
-We then train the final RBF SVR model using the optimal hyperparameters obtained from tuning and apply 10-fold cross-validation to  get a more reliable model that works better on unseen data, and we center and scale the predictors for numerical stability. 
-#### Model Evaluation
+We then train the final RBF SVR model using the optimal hyperparameters obtained from tuning and apply 10-fold cross-validation to  get a more reliable model that works better on unseen data, and we center and scale the predictors for numerical stability.
+
+
 Here the metrics are extracted and printed so we can then compare it against models with different kernels.
 ```{r}
 rmse_rbf <- svr_rbf_model_final $results$RMSE
@@ -957,7 +957,9 @@ cat("MAE (RBF SVR):", mae_rbf, "\n")
 ```
 This is better than polynomial kernel. We will discuss the results of all kernels in the next section.
 
-### Conclusion: SVR Model Evaluation on out of sample data
+### Conclusion
+
+#### Evaluating the Kernels
 We will now evaluate the performance of each SVR model using metrics such as RMSE, MAE, and \(R^2\). This will allow us to compare the predictive accuracy of the linear, polynomial, and RBF kernels, and determine which kernel provides the best fit for our data.
 
 ```{r}
@@ -972,6 +974,9 @@ print(results)
 ```
 We find that the RBF kernel outperforms the linear and polynomial kernels across all metrics, which is expected given its able to capture complex, nonlinear relationships in the data.
 
+The linear SVR performed relatively poorly, suggesting that the relationship between the covariates and the target variable is not purely linear. During hyperparameter tuning, the polynomial SVR favoured a higher polynomial degree, indicating that the model required a more complex functional form to fit the data effectively. However, this increased model complexity came with a significant computational cost, as significantly increased the training times. In contrast, the RBF kernel captured the nonlinear structure of the data more efficiently, providing a smoother regression function and better overall performance while remaining computationally feasible.
+
+#### Testing RBF SVR on Out of Sample Data
 We will now use the out- of sample data to see how well the RBF SVR performs on unseen data and evaluate its generalisation ability. 
 
 ```{r}
@@ -979,8 +984,6 @@ We will now use the out- of sample data to see how well the RBF SVR performs on 
 predictions_rbf_test <- predict(svr_rbf_model_final, newdata = test_data_clean)
 
 ```
-
-#### Plot Actual vs Predicted
 We plot Actual vs Predicted for each city to visually assess the performance of the RBF SVR model. 
 ```{r}
 # Plot actual vs predicted
@@ -994,16 +997,15 @@ p_rbf_test <- ggplot(test_data_clean, aes(
   labs(
     x = "Actual PM10",
     y = "Predicted PM10",
-    title = "Actual vs Predicted for out of sample data"
+    title = "Actual vs Predicted for Out of Sample Data"
   ) +
   theme_minimal()
 ggplotly(p_rbf_test, tooltip = "text")
 
 ```
 A lot of points lie close to the dashed red line, indicating that the model predicts PM10 concentrations well for many cities. However, some points are quite far from the line, meaning that the model struggles to accurately predict PM10 for certain locations.
-#### Model Evaluation
+
 ```{r}
-# Evaluation 
 # Calculate test set metrics
 rmse_rbf_test <- sqrt(mean((test_data_clean$pm10_concentration - predictions_rbf_test)^2))
 mae_rbf_test  <- mean(abs(test_data_clean$pm10_concentration - predictions_rbf_test))
