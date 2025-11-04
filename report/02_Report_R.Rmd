@@ -22,7 +22,7 @@ if(!require("caret")) install.packages("caret")
 if(!require("stringi")) install.packages("stringi")
 if(!require("randomForest")) install.packages("randomForest")
 if(!require("glmnet")) install.packages("glmnet")
-
+if(!require("kernlab")) install.packages("kernlab")
 
 # We load the libraries we will need throughout the project:
 library(ggplot2)
@@ -35,6 +35,7 @@ library(caret)
 library(stringi)
 library(randomForest)
 library(glmnet)
+library(kernlab)
 ```
 
 ```{r loading, include=FALSE}
@@ -283,7 +284,7 @@ In order to assess the performance of my chosen model submission, the
 Random Forest model, our group has chosen to use the **Root Mean Squared
 Error (RSME)**.
 
-We have found the RSME and R^2 using code adapted from @stack2 and @datacamp (respectively).
+We have found the RSME, R^2 and MAE using code adapted from @stack2, @datacamp and @stack3 (respectively).
 
 ```{r}
 RSME <- sqrt(mean((test_data$pm10_concentration - test_data$predicted_pm10)^2, na.rm = TRUE))
@@ -296,6 +297,9 @@ model_r2 <- lm(test_data$predicted_pm10 ~ test_data$pm10_concentration)
 R2 <- summary(model_r2)$r.squared
 cat("R-squared (R²):", round(R2, 3), "\n")
 
+# Calculate MAE
+MAE <- mean(abs(test_data$pm10_concentration - test_data$predicted_pm10), na.rm = TRUE)
+cat("Mean Absolute Error (MAE):", round(MAE, 3), "\n")
 ```
 
 -    The value of **2.826** tells us that, on average, the Random Forest's predicted PM10 concentrations differ from the true observed values by about **2.8$\mu g/m^3$**.
@@ -305,6 +309,7 @@ cat("R-squared (R²):", round(R2, 3), "\n")
 -    This results supports the visual evidence from the scatter plot, confirming that the model's performance is strong and reliable.
 
 -    Additionally, an $R^{2}$ value of **0.883** tells us that the model explains 88.3% of the variation in PM10 concentrations.
+-    Also an MAE of *1.78* means that, in a similar sense, the model’s predicted PM10 concentrations differ from the actual observed values by about 1.78 units, again indicating a relatively small average prediction error and good overall accuracy.
 
 -    This again suggests a strong fit between predicted and actual values.@datacamp
 
@@ -521,7 +526,7 @@ Regarding the R^2 value, we can see the Linear model has the highest value, sugg
 
 Meanwhile the method with the smallest MAE (Mean Absolute Error) is the Ridge method once again. Meaning we can deduce that overall this method deviates the least from our true pm10 concentrations.
 
-Hence we can conclude that the Ridge regularisation linear regression is the best model for our regression, although the differences are very small, it strikes the best balance between bias and variance whuch provides slightly better predictive accuracy. 
+Hence we can conclude that the Ridge regularisation linear regression is the best model for our regression, although the differences are very small, it strikes the best balance between bias and variance which provides slightly better predictive accuracy. 
 
 ### Model visualisation:
 
@@ -585,7 +590,7 @@ We have seen in section Linear Regression how to address multicollinearlity and 
 
 In our above working we have been using the ordinary least squares residual which aims to minimise the function $\sum_i (y_i - x_i^T \beta )^2$. As we can see from this equation residuals get quadratic penalties and hence very large residual can dominate the fit. 
 
-For the next section we found a source "Venables, W.N. and Ripley, B.D. (2002) Modern applied statistics with S. 4th ed. New York: Springer." that explained robust and resistant regression and the packages required in R.
+For the next section we found a source @appliedstat that explained robust and resistant regression and the packages required in R.
 
 
 Robust regression minimises a weighted loss function so large residuals have less influence. 
@@ -615,9 +620,9 @@ We will continue using the same equation for our model as in the Linear Regressi
 lm_formula_pm10=pm10_concentration ~ poly(year, 2)+poly(no2_concentration,3) +population+log_population+ longitude+latitude+ latitude*longitude
 ```
 
-Applying the robust regression models described above requires the use of the rlm() function from the MASS library, where we can specify the robustness function by choosing $\psi$ as described in "Venables, W.N. and Ripley, B.D. (2002)". However we have previously used the train() function from the caret library in order to conduct cross validation on the model however this doesnt support the rlm() function needed to conduct robust regression. Consequently we have to perform the cross validation manually. 
+Applying the robust regression models described above requires the use of the rlm() function from the MASS library, where we can specify the robustness function by choosing $\psi$ as described in @appliedstat. However we have previously used the train() function from the caret library in order to conduct cross validation on the model however this doesnt support the rlm() function needed to conduct robust regression. Consequently we have to perform the cross validation manually. 
 
-From 'An introduction to statistical learning: with applications in R' we define k-fold Cross Validation as $CV_{(k)} = \frac{1}{k} \sum_{i=1}^k \text{MSE}_i$, in K fold cross validation we divide the set of observations into k groups of equal size, the first fold is treated as validation set then the model is fit on the remaining k-1 folds. Mean squared error MSE is computed for each fold and an average of this is computed. In order to find the performance metrics we are using we must compute them from the equations:
+From @statlearn we define k-fold Cross Validation as $CV_{(k)} = \frac{1}{k} \sum_{i=1}^k \text{MSE}_i$, in K fold cross validation we divide the set of observations into k groups of equal size, the first fold is treated as validation set then the model is fit on the remaining k-1 folds. Mean squared error MSE is computed for each fold and an average of this is computed. In order to find the performance metrics we are using we must compute them from the equations:
 
 $RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^n (y_i-\hat{y}_i)^2)} = \sqrt{MSE}$
 
