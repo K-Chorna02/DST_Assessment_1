@@ -580,87 +580,159 @@ Including these variables could help to address the assumption violations we fou
 
 ## Model: Robust regression
 
-```{r robust-regression-comparison, message=FALSE, warning=FALSE}
+We have seen in section Linear Regression how to address multicollinearlity and overfitting with the ridge, lasso and elastics net regression. Now we will look at robust regression models, these models perform more reliably when the data contains outliers. This can be particularly useful in environmental data since there can be anomalies in the data due to short term events such as fires or storms or faulty equipment. However, as our data is the average pm10 concentration from the given year in a given city anomalies may be less likely since we already have an average not the individual values from throughout the year.
 
-# --- Libraries ---
+
+In our above working we have been using the ordinary least squares residual which aims to minimise the function $\sum_i (y_i - x_i^T \beta )^2$. As we can see from this equation residuals get quadratic penalties and hence very large residual can dominate the fit. 
+
+For the next section we found a source "Venables, W.N. and Ripley, B.D. (2002) Modern applied statistics with S. 4th ed. New York: Springer." that explained robust and resistant regression and the packages required in R.
+
+
+Robust regression minimises a weighted loss function so large residuals have less influence. 
+
+
+For a given density $f$ we define the loss function as $\rho = - \log f$
+
+
+So the MLE estimator solves $\min_ \mu \sum_i - \log f (y_i - \mu) = \min _\mu \sum_i \rho (y_i - \mu)$, we set $\psi$ to be the derivative of $\rho$ so $\psi = \rho '$. To find the minimum we set the derivative of the function to zero and hence we get $\sum_i \psi (y_i - \hat{\mu}) =0$. We can also write this in the weighted form with $\sum_i w_i(y_i-\hat{\mu})=0$ where $w_i =\psi (y_i-\hat{\mu})/(y_i-\hat{\mu})$ is the weight of each iteration in the algorithm.
+
+
+In particular we will look at three robust models which each define $\psi$ differently:
+
+
+Huber: $\chi (x) = \psi (x)^2 = \min (|x|,c)^2$ where $c=1.5$ is the default.
+
+Tukey : $\psi(t) = t[1-(\frac{t}{R})^2] _+^2$ where the value $R= 4.685$ gives a $95%$ efficiency at the normal.
+
+Hampel: is a piecewise function for example $\psi(x) = \text{sgn} (x) \begin{cases} |x| & \ 0<|x| <a \\ a & a<|x| <b \\ a(c-|x|)/(c-b) & \ b<|x|<c \\ 0 & c<|x| \end{cases}$
+
+
+The main difference between these models is how quickly they downweigh the outliers, Tukey is the most resistant as it completely rejects very large residuals, Hampel takes a middle ground moderately downweighing and only removing very extreme values and Huber is the least aggressive down weighing residuals but never fully removing them.
+
+We will continue using the same equation for our model as in the Linear Regression section.
+
+```{r}
+lm_formula_pm10=pm10_concentration ~ poly(year, 2)+poly(no2_concentration,3) +population+log_population+ longitude+latitude+ latitude*longitude
+```
+
+Applying the robust regression models described above requires the use of the rlm() function from the MASS library, where we can specify the robustness function by choosing $\psi$ as described in "Venables, W.N. and Ripley, B.D. (2002)". However we have previously used the train() function from the caret library in order to conduct cross validation on the model however this doesnt support the rlm() function needed to conduct robust regression. Consequently we have to perform the cross validation manually. 
+
+From 'An introduction to statistical learning: with applications in R' we define k-fold Cross Validation as $CV_{(k)} = \frac{1}{k} \sum_{i=1}^k \text{MSE}_i$, in K fold cross validation we divide the set of observations into k groups of equal size, the first fold is treated as validation set then the model is fit on the remaining k-1 folds. Mean squared error MSE is computed for each fold and an average of this is computed. In order to find the performance metrics we are using we must compute them from the equations:
+
+$RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^n (y_i-\hat{y}_i)^2)} = \sqrt{MSE}$
+
+$MAE = \frac{1}{n}  \sum_{i=1}^n |y_i-\hat{y}_i|$
+
+$R^2 = 1 - \frac{SS_{res}}{SS_{tot}} = 1- \frac{\sum_{i=1}^n (y_i-\hat{y}_i)^2}{\sum_{i=1}^n (y_i-\bar{y})^2}$
+
+where $y_i$ is the actual value, $\hat{y}_i$ is the predicted value from the model used and $\bar{y}$ is the mean of the actual values. We get get the formula:
+
+
+```{r}
 library(MASS)
 library(dplyr)
-library(Metrics)
+library(Metrics)  # For RMSE and MAE
 
-# --- Formula and data ---
-lm_formula_pm10 <- pm10_concentration ~ poly(year, 2) +
-  poly(no2_concentration, 3) + population + log_population +
-  longitude + latitude + latitude * longitude
-
-data <- train_data_clean
+# --- Data ---
+data <- train_data_clean  # your clean training dataset
+lm_formula_pm10 <- pm10_concentration ~ poly(year, 2) + poly(no2_concentration, 3) +
+                 population + log_population + longitude + latitude + latitude*longitude
 
 set.seed(42)
 k <- 10
 folds <- sample(1:k, nrow(data), replace = TRUE)
 
-# --- Cross-validation for rlm ---
+# --- Function for CV for lrm() function---
 cv_rlm <- function(formula, data, psi_function, k_folds) {
-  rmse_vals <- mae_vals <- r2_vals <- numeric(k_folds)
+  rmse <- rep(NA, k_folds)
+  r2   <- rep(NA, k_folds)
+  mae  <- rep(NA, k_folds)
   
   for (i in 1:k_folds) {
     train_fold <- data[folds != i, ]
     test_fold  <- data[folds == i, ]
     
-    # Fit model with robust M-estimation
-    model <- try(rlm(formula, data = train_fold, psi = psi_function), silent = TRUE)
-    if (inherits(model, "try-error")) next
+    model <- rlm(formula, data = train_fold, psi = psi_function)
     
-    # Predict and compute metrics
     pred <- predict(model, newdata = test_fold)
     actual <- test_fold$pm10_concentration
     
-    rmse_vals[i] <- Metrics::rmse(actual, pred)
-    mae_vals[i]  <- Metrics::mae(actual, pred)
+    rmse[i] <- sqrt(mean((actual - pred)^2))
+    mae[i]  <- mean(abs(actual - pred))
     
+    # R²: 1 - SS_res / SS_tot
     ss_res <- sum((actual - pred)^2)
     ss_tot <- sum((actual - mean(actual))^2)
-    r2_vals[i]  <- if (ss_tot == 0) NA else 1 - ss_res / ss_tot
+    r2[i]  <- 1 - ss_res/ss_tot
   }
   
   data.frame(
     Model = deparse(substitute(psi_function)),
-    RMSE = mean(rmse_vals, na.rm = TRUE),
-    MAE  = mean(mae_vals, na.rm = TRUE),
-    R2   = mean(r2_vals, na.rm = TRUE)
+    RMSE = mean(rmse),
+    MAE  = mean(mae),
+    R2   = mean(r2)
   )
 }
+```
 
-# --- Cross-validation for lqs ---
+
+### Resistant Regression
+
+In addition to robust regression, resistant regression also performs more reliably when outliers are present in the dataset. However resistant regression doesn't minimise the ordinary least squares equation, it minimises a different loss function which ignores the extreme points rather than just downweighing them.
+In particular we will look at:
+
+Least median of squares, LMS: $\min_b \text{median} |y_i - x_ib|^2$ this minimises the median of squared residuals. It can be very inefficient as it has a converging rate of $\frac{1}{\sqrt[3]{n}}$.
+
+Least trimmed squares regression, LTS: $\min_b \sum_{i=1}^q |y_i -x_ib|^2_{(i)}$ where $q=(n+p+1)/2$, this minimises the sum of the smallest q squared residuals.
+
+S-estimation: the solution to $\sum_{i=1}^n \chi (\frac{y_i-x_ib}{c_0s}) = (n-p)\beta$ with small scale s, $\chi$ is usually chosen as $\chi (u) = u^6 -3u^4 + 3u^2,  |u| \leq 1$ and $c_0= 1.548$ and $\beta = 0.5$ are chosen for consistency at the normal distribution of errors.
+
+
+Comparing these three models, LMS is the most resistance, LTS is moderately resistant and retains a good efficiency and S-estimator is the least aggressive but is more efficient than LTS and LMS.
+
+
+Similarly as in robust regression we cannot use the lqs() function from the MASS library within train() hence we create a function for CV which uses the lqs() function.
+
+
+```{r}
+set.seed(42)
+k <- 10
+folds <- sample(1:k, nrow(data), replace = TRUE)
 cv_lqs <- function(formula, data, method_type, k_folds) {
-  rmse_vals <- mae_vals <- r2_vals <- numeric(k_folds)
-  
+  rmse <- rep(NA, k_folds)
+  r2   <- rep(NA, k_folds)
+  mae  <- rep(NA, k_folds)
+
   for (i in 1:k_folds) {
     train_fold <- data[folds != i, ]
     test_fold  <- data[folds == i, ]
-    
-    model <- try(lqs(formula, data = train_fold, method = method_type), silent = TRUE)
-    if (inherits(model, "try-error")) next
-    
+
+    model <- lqs(formula, data = train_fold, method = method_type)
     pred <- predict(model, newdata = test_fold)
     actual <- test_fold$pm10_concentration
-    
-    rmse_vals[i] <- Metrics::rmse(actual, pred)
-    mae_vals[i]  <- Metrics::mae(actual, pred)
-    
+
+    rmse[i] <- sqrt(mean((actual - pred)^2))
+    mae[i]  <- mean(abs(actual - pred))
+
+    # R²
     ss_res <- sum((actual - pred)^2)
     ss_tot <- sum((actual - mean(actual))^2)
-    r2_vals[i]  <- if (ss_tot == 0) NA else 1 - ss_res / ss_tot
+    r2[i]  <- 1 - (ss_res/ss_tot)
   }
-  
+
   data.frame(
-    Model = paste("lqs", method_type, sep = "_"),
-    RMSE = mean(rmse_vals, na.rm = TRUE),
-    MAE  = mean(mae_vals, na.rm = TRUE),
-    R2   = mean(r2_vals, na.rm = TRUE)
+    Model = paste("lqs", method_type, sep="_"),
+    RMSE = mean(rmse),
+    MAE  = mean(mae),
+    R2   = mean(r2)
   )
 }
 
-# --- Run all models and combine results ---
+```
+
+### Comparing the models
+
+```{r}
 set.seed(42)
 cv_results <- bind_rows(
   cv_rlm(lm_formula_pm10, data, psi.huber, k),
@@ -671,12 +743,52 @@ cv_results <- bind_rows(
   cv_lqs(lm_formula_pm10, data, "S", k)
 )
 
-# --- Clean and display ---
-cv_results <- cv_results %>%
-  mutate(across(c(RMSE, MAE, R2), round, 3))
-
 cv_results
 ```
+
+
+The RMSE is significantly high for the resistant models particularly LTS, indicating poor performance. In contrast, the robust models performed better especially the huber model. 
+Similarly, for the R² metric, where a higher value indicates better fit, the resistant models all gave negative values showing that they perform worse than the mean. The huber model achieved the highest R². For the resistant models we got negative R^2 which was very surprising for the models to perform that badly that hey perform worse than predicting the mean.
+For MAE, where lower values are preferred, all robust models outperformed the others, with Huber once again performing best. 
+
+So we conclude that the robust models performed much better than the resistant models. In particular, the huber model performed the best and therefore we select the Huber model to predict the PM10 concentrations. 
+
+### Predicting
+
+We will use the huber model to predict the pm_10 concentration
+
+```{r}
+# Predict PM10 for all observations in the dataset
+huber_model <- rlm(lm_formula_pm10, data = train_data_clean, psi = psi.huber)
+test_data_clean$pred_pm10_huber    <- predict(huber_model, newdata = test_data_clean)
+
+#now our results:
+results=data.frame(
+  actual_pm10 = test_data_clean$pm10_concentration,
+  pred_pm10_huber = test_data_clean$pred_pm10_huber,
+  country = test_data_clean$country_name)
+```
+
+```{r}
+library(ggplot2)
+ggplot(results, aes(
+  x = actual_pm10,y = pred_pm10_huber)) +
+  geom_point(alpha = 0.8, size = 2) +
+  geom_abline(intercept = 0, slope = 1, color = "black") +geom_smooth(method = NULL , se = FALSE, color = "red")+geom_smooth(method = 'lm' , se = FALSE, color = "blue")+
+  labs(title = "Actual vs Predicted PM10 concentrations for cities in Europe", 
+    x = "Actual PM10 concentration",y = "Predicted PM10 concentration from huber"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "right",plot.title = element_text(face = "bold"))
+```
+
+Similarly to the graph in the Linear Regression section, we have plotted the actual pm10 values vs the predicted pm10 with two smoothing lines, the blue line indicated the linear regression line and the red line  is the automatic smoothing model within ggplot2. At the start we have more clustering of points near to the perfect prediction line indicating these points were predicted better. As the actual pm10 value gets higher the predicted values gets much further from the actual value.
+
+
+### Conclusion 
+
+We have explored how robust regression assigns lower weights to outliers, reducing their influence, while resistant regression methods largely ignore extreme observations altogether. In our dataset, the resistant regression models performed poorly, producing large errors and low R^2 values, indicating weak predictive ability. The robust regression models, on the other hand, performed significantly better, with the Huber model achieving the lowest RMSE and highest R^2. We therefore conclude that the Huber model provides the best balance between sensitivity to data and robustness to outliers. However, its performance was still limited this could be because the covariates we used in the model don't fully explain the variability in pm10, for example there might be other variables that are not in the dataset that could help explain this, for example temperature or industrial activity. In addition, the model we specified might not fully capture the non linear relationship between the predictors and pm10 concentration.
+
 
 ## Model: Support vector machines
 
