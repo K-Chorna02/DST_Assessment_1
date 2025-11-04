@@ -1,0 +1,312 @@
+---
+title: "RandomForestFinal"
+output: html_document
+date: "2025-11-03"
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#load packages 
+
+
+library(here)
+library(dplyr)
+library(tidyr) #for pivoting 
+library(randomForest)
+library(caret)
+
+```
+
+# 1. Introduction
+
+The use of decision trees is both simple and intuitive. They provide a
+straight forward, visual way to represent how different variables
+influence a certain outcome by splitting data into small groups based on
+predictor values. However, single decision trees can be unstable and
+sensitive to training data. This problem is referred to as over-fitting,
+where a model performs well on known data but poorly on unseen data. And
+so minor changes in the dataset can lead to major changes in the
+predicted outcomes. Hence this makes them inefficient when generalising
+new, unseen data .
+
+Random Forest trees presents a way of overcoming these issues. The idea
+is that they combine the predictions of many single decision trees into
+one robust and accurate model. Instead of relying on a single tree, a
+Random Forest builds multiple trees using different samples of the data
+and random subsets of features at each split. The results from all trees
+are then averaged (for regression) or voted on (for classification) to
+generate the final prediction.
+
+With this in mind, we can confidently say that this model will be highly
+appropriate for our aim of predicting PM10 concentrations across
+European cities. Data regarding air quality is complex. It can contain
+non-linear patterns, interactions between pollutants and regional
+differences. A single regression model may struggle to capture these
+elements, but Random Forests can adapt to these complexities without
+requiring strong assumptions about the data's structure.
+
+reference: [1] "<https://www.ibm.com/think/topics/random-forest>"
+
+# 2. Data Preparation
+
+
+```{r}
+
+who_data <- read.csv(here("GracieBelmonte","data","who_data.csv"))
+
+
+europe_data= who_data %>%
+  filter(who_region=="4_Eur")%>%
+  select(-iso3, -pm10_tempcov, -pm25_tempcov,-who_region,-no2_tempcov, -type_of_stations)%>%
+  filter(!is.na(pm10_concentration)) # drop the missing values of the row we are predicting 
+  
+
+set.seed(2)
+
+#for models that include missing data 
+#split training and test data
+train_index <- sample(seq_len(nrow(europe_data)), size = 0.9 * nrow(europe_data)) #creating a 90-10 split
+train_data <- europe_data[train_index, ]
+test_data  <- europe_data[-train_index, ]
+
+
+#USE CROSS VALIDATION
+# Define formula 
+
+rf_formula <- pm10_concentration ~ pm25_concentration + no2_concentration +
+               population + latitude + longitude
+
+
+# 10 fold cross validation step 
+set.seed(123)
+train_control <- trainControl(method = "cv", number = 10)
+
+
+train_cv= trainControl(method = "cv",number=10)
+
+```
+
+The key variables retained were:
+
+-   `pm10_concentration` - the target variable to be predicted.
+-   `pm25_concentration`, no2_concentration`, `population`, `longitude` and `latitude` -
+    predictor variables.
+-   `country_name`, `city` and `year` - identifying variables.
+
+# 3. Train the Random Forest Model
+
+This section implemented the Random Forest algorithm, adapted
+from: [2] "<https://www.statology.org/random-forest-in-r/>"
+
+-   The model was specified as:
+
+**PM10 concentration** \~ **NO₂ concentration** + **pm25
+concentration** + **population**
+
+`pm10_concentration ~ no2_concentration + pm25_concentraion + population`
+
+-   The algorithm automatically handled missing values using the `na.roughfix`
+    function that was found from :
+    [3] '<https://stackoverflow.com/questions/8370455/how-to-use-random-forests-in-r-with-missing-values>"
+-   The default of 500 decision trees was used.
+-   When building each tree, the `randomForest` algorithm only considers
+    a random subset of the available predictors at each split.
+-   This randomness prevents dominant predictors, for example
+    `pm25_concentration` from being used in every tree, and thus skewing
+    results.
+-   The final prediction is the average of all the trees' output.
+
+```{r}
+
+library(randomForest)
+
+set.seed(123)
+rf_model <- randomForest(
+  formula = rf_formula,
+  data = train_data, # this will need the whole 90% train data 
+  na.action = na.roughfix,  # automatically handles missing predictors   
+  trControl = train_control        
+)
+
+rf_model
+
+```
+
+The model output shows:
+
+-   **Mean of Squared Residuals = 28.802** - representing the average
+    squared difference between predicted and actual PM10 values.
+
+-   **% Variance Explained = 78.50%** - indicating that almost 80% of
+    the variance in PM10 levels is explained by NO2 concentration,
+    population, longitude and latitude.
+
+-   However, we note that the **model's effectiveness** will instead be assessed using
+    predictions on the 10% unseen test data.
+
+# 4. Visualising our predictions
+
+-   In this section, the fitted Random Forest model is used to **predict
+    PM10 concentrations** .
+-   This procedure again uses code
+    from:[2]"<https://www.statology.org/random-forest-in-r/>"
+
+```{r}
+
+#making our predictions
+
+# use the fitted Random Forest model to predict PM10 values for 2021 
+predictions <- predict(rf_model, newdata = test_data)
+
+# add the predicted PM10 values to the test dataset 
+test_data$predicted_pm10 <- predictions
+
+#head(test_data)
+
+
+
+```
+
+-   The `predict()` function in R takes the fitted Random Forest model
+    object (`rf_model`) and applies it new data (`test_data`).
+
+-   `test_data\$predicted_pm10 \<- predictions` creates a new variable
+    within 'test_data' data-frame that stores the model's predicted PM10
+    values.
+
+```{r}
+
+# load ggplot2 for graphs 
+
+library(ggplot2)
+
+#scatter plot of predicted vs actual PM10  
+ggplot(test_data, aes( x = pm10_concentration, y = predicted_pm10)) +
+  geom_point(colour = "steelblue", size = 3, alpha = 0.7) +
+  geom_abline(slope= 1, intercept = 0, colour= "red", linetype = "dashed") +
+  labs(
+    title = "Predicted vs Actual PM10 concentrations ",
+    x = "Actual PM10 Concentration",
+    y = "Predicted PM10 Concentration"
+  ) + 
+  theme_minimal(base_size = 13)
+
+
+
+```
+
+### Comments on the scatter plot
+
+-   The majority of the points cluster closely around the red line (perfect prediction line), suggesting a good alignment of the predicted and observed values. 
+
+-   This indicates that the Random Forest model successfully captures the key relationships between PM10 and the predictor variables. 
+
+
+-   The tightness of the spread represents a low overall error, however there are a few outliers present for the higher pollution levels. 
+
+
+-   These high pollution levels are predicted less accurately, likely because such extreme pollution levels are under-represented in the training data. 
+
+
+-   Overall, this is a good plot and shows a strong predictive performance of the Random Forest model.
+
+
+# 5. Evaluate Model Preformance with a metric 
+
+In order to assess the performance of my chosen model submission, the
+Random Forest model, our group has chosen to use the **Root Mean Squared
+Error (RSME)**.
+
+We have implemented this using code adapted from:[4]
+"<https://stackoverflow.com/questions/60685866/how-do-i-find-out-the-rmse-of-a-random-forest-in-r>"
+
+```{r}
+
+
+RSME <- sqrt(mean((test_data$pm10_concentration - test_data$predicted_pm10)^2, na.rm = TRUE))
+
+cat("Root Mean Squared Error (RMSE):", round(RSME, 3), "\n")
+
+
+
+```
+
+-    The value of **2.826** tells us that, on average, the Random Forest's predicted PM10 concentrations differ from the true observed values by about **2.8$\mu g/m^3$**.
+
+-    Given that the typical range of PM10 concentrations across Europe regions is often between 10-40$\mu g/m^3$, a value of 2.83 is a relatively small error. 
+
+-    This results supports the visual evidence from the scatter plot, confirming that the model's performance is strong and reliable.
+
+# 6. Analyse Feature Importance 
+
+A useful strength of the Random Forest model is that they can provide a
+direct measure of **feature Importance**, in other words, quantifying
+how much each variable contributed to the models prediction.
+
+This is calculated using how much each variable reduces the model's
+prediction error across all trees in the forest. We used code adapted
+from
+[5]"<https://stats.stackexchange.com/questions/153663/how-to-get-the-most-important-variables-in-random-forests-in-r>")
+
+```{r}
+
+# extract feature importance from the Random Forest Model 
+
+importance_df <- importance(rf_model) %>%
+  data.frame() %>%
+  mutate(Feature = rownames(.))
+
+
+#Display
+colnames(importance_df)
+
+#Plot Feature Importance 
+library(ggplot2)
+
+ggplot(importance_df,aes(x = reorder(Feature, IncNodePurity), y = IncNodePurity)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.8) +
+  coord_flip()+
+  labs(
+    title = "Feature Importance in Random Forest Mode", 
+    x = "Predictor Variable",
+    y = "Importance (Increase in MSE)"
+  ) +
+  theme_minimal(base_size = 13)
+
+
+
+
+```
+
+## Discussion of the graph
+
+-   The x-axis represents the importance score `IncNodePurity`, which is
+    the amount each variable improves the model's ability to make
+    accurate splits across all trees in the Random Forest.
+-   The y-axis lists the predictors: `longitude`, `latitude`,
+    `pm25_concentration`, `no2_concentration` and `population`.
+
+### Interpretation
+
+-   `Longitude` was the most influential variable, the model relies
+    heavily on a location's east-west position to predict PM10. This suggests the presence of clear geographic patterns in air pollution across Europe, possibly linked to regional industrial activity or atmospheric conditions. 
+-   `population` has the lowest importance score, implying that population density plays a minor role once environmental and geographical variables are considered.
+
+
+# 7. Conclusion
+
+In conclusion, by combining multiple decision trees to capture
+non-linear patterns between air pollution, geography and population, the
+Random Forest model provided an effective approach to predicting PM10
+levels across Europe.
+
+
+With an RSME of **2.8$\mu g/m^3$**, the model achieved a strong level of predictive accuracy, confirming that this algorithm gives a good generalisation to unseen air quality data. 
+Overall, we can confidently say that the Random Forest proved to be a robust and realistic modelling approach for our air quality regression problem. 
+
