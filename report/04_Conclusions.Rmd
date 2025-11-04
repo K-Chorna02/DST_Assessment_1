@@ -19,7 +19,7 @@ library(kableExtra)
 # Performance metric
 
 Throughout our report we recorded the RMSE, the R^2 and the MAE. 
-The RMSE is a good indicator of how large the prediction errors are on average, penalizing larger errors more heavily than smaller ones. This makes it sensitive to outliers and particularly useful when larger deviations are undesirable, such as our environmental context.
+The RMSE is a good indicator of how large the prediction errors are on average, penalizing larger errors more heavily than smaller ones. This makes it particularly useful in our environmental context, where large deviations can indicate critical pollution events.
 
 $$
 \mathrm{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}
