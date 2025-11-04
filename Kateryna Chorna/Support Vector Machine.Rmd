@@ -59,6 +59,9 @@ clean_data_europe$city <- as.factor(clean_data_europe$city)
 train_data <- filter(clean_data_europe, year <= 2019)
 valid_data <- filter(clean_data_europe, year == 2020)
 test_data  <- filter(clean_data_europe, year == 2021)
+
+
+train_data_final_model <- filter(clean_data_europe, year <= 2020)
 ```
 
 
@@ -611,8 +614,62 @@ r2_rbf_valid_best <- 1 - sum((predictions_rbf_valid_best - actuals_rbf_valid_bes
 # Print all metrics
 cat("RMSE (RBF - Validation - Best):", rmse_rbf_valid_best, "\n")
 cat("MAE (RBF - Validation - Best):", mae_rbf_valid_best, "\n")
-cat("R² (RBF - Validation - Best):", r2_rbf_valid_best, "\n")
+cat("R2 (RBF - Validation - Best):", r2_rbf_valid_best, "\n")
 
 
+```
+# Final SVR Model 
+
+```{r}
+# Final RBF SVR Model (best gamma & cost)
+svr_rbf_model_final <- svm(
+  pm10_concentration ~ year * no2_concentration + population + latitude + longitude,
+  data = train_data_final_model,
+  type = "eps-regression",
+  kernel = "radial",
+  gamma = 0.01,  # best gamma from tuning
+  cost = 1
+)
+
+# Predict on Test Data
+predictions_rbf_test <- predict(svr_rbf_model_final, newdata = test_data)
+
+# Create UTF-8 copies for tooltips only
+tooltip_city <- iconv(test_data$city, from = "", to = "UTF-8", sub = "?")
+tooltip_country <- iconv(test_data$country_name, from = "", to = "UTF-8", sub = "?")
+
+# Interactive Plot: Actual vs Predicted
+p_rbf_test <- ggplot(test_data, aes(
+  x = pm10_concentration,
+  y = predictions_rbf_test,
+  text = paste0("City: ", tooltip_city, "<br>Country: ", tooltip_country)
+)) +
+  geom_point(color = "darkgreen", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Actual PM10",
+    y = "Predicted PM10",
+    title = "RBF SVR Predictions vs Actual (Test Data, >2020)"
+  ) +
+  theme_minimal()
+
+ggplotly(p_rbf_test, tooltip = "text")
+
+```
+
+
+## Model Evaluation 
+```{r}
+# Evaluation Metrics
+actuals_rbf_test <- test_data$pm10_concentration
+
+rmse_rbf_test <- sqrt(mean((predictions_rbf_test - actuals_rbf_test)^2))
+mae_rbf_test <- mean(abs(predictions_rbf_test - actuals_rbf_test))
+r2_rbf_test <- 1 - sum((predictions_rbf_test - actuals_rbf_test)^2) /
+                    sum((actuals_rbf_test - mean(actuals_rbf_test))^2)
+
+cat("RMSE (RBF - Test):", rmse_rbf_test, "\n")
+cat("MAE (RBF - Test):", mae_rbf_test, "\n")
+cat("R2 (RBF - Test):", r2_rbf_test, "\n")
 ```
 
