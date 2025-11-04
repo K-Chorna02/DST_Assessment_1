@@ -52,12 +52,15 @@ who_data$country_name[who_data$iso3 == "TUR"] <- "Turkey"
 # Predicting Pm10 concentration levels for 2021, using data from different cities in Europe
 
 # Introduction
-Throughout this project, we use data relevant to environmental health analysis, focusing on air pollution data from the World Health Organisation.
-The aim of our project is to analyse various models that can be used to predict future pm10 pollution levels. We test on 90% of our data and then a final validation set for each model. We have filtered by European cities as these had the highest amount of data, making our results more interpretable. (Read the 'Introduction'01_Data_and_Introduction' for further justification of this choice of prediction.)
-These predictions could be used to influence policy making to address issues of increasing pm10 concentration levels over time, for example when trying to decide a threshold target similar to the Paris Climate agreement aiming to reduce temperature. 
-Having cleaned and prepared our data in the previous section, we will filter by European cities before examining which models we implemented for our predictive modelling and comparing their performance. We will also discuss the suitability of different performance measures such as RMSE for continuous predictions.
+Throughout this project, we analyse air pollution data from the World Health Organisation, focusing on pm10 concentrations as these pollutant levels are a clear indicator of air quality.
 
-This modelling approach could generalise to other pollutants or continents if we were to train on the region specific data, something we will discuss further in our conclusions.
+The aim of our project is to analyse various models that can be used to predict pm10 concentration levels for cities in Europe, as this area provided the most complete data, making our results more interpretable.
+
+Each model is trained on 90% of our data (using set.seed to ensure we train on the same data), then evaluated on a final validation set. 
+
+Since our dataset contains a large amount of missing data, this prediction is particularly useful for estimating pm10 levels in cities with incomplete observations, allowing us to capture pollution trends across a wide range of European areas.
+Each team member applied a different modelling strategy to optimise performance using the same performance metric, we will discuss the suitability of different performance measures such as RMSE for continuous predictions.
+Although this modelling approach could be extended to other pollutants or regions, we acknowledge that training only on European data limits generalisability to other continents due to differing emission sources and environmental conditions.
  
 ## Predictive modelling 
 Before we delve into the different models we used, we still have an issue with the missingness of our data. Although we have identified that European cities are more easily analysed since they have a sufficient amount of their data, some predictive models won't work with any missing data at all. 
