@@ -7516,7 +7516,12 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="XGBoost-Regression-Model">XGBoost Regression Model<a class="anchor-link" href="#XGBoost-Regression-Model">¶</a></h1><p>The extreme gradient boosting model [1] works by using ensemble learning with a series of regression trees. The model aims to choose the regression tree that minimises a regularised loss function that measures the difference between the predicted values and the true values of the target variable. The loss function penalises model complexity so the end result is a simple tree with a minimal error score. Addtionally the loss function's regularisation term avoid overfitting. The XGBoost model is often the best perfoming supervised machine learning model so we expect it to perform better than the random forest model when predicting PM10 concentration for this dataset.</p>
+<h1 id="XGBoost-Regression-Model">XGBoost Regression Model<a class="anchor-link" href="#XGBoost-Regression-Model">¶</a></h1><p>The extreme gradient boosting model [1] works by using ensemble learning with a series of regression trees. The model aims to choose the regression tree that minimises a regularised loss function that measures the difference between the predicted values and the true values of the target variable. The loss function penalises model complexity so the end result is a simple tree with a minimal error score. Addtionally the loss function's regularisation term avoids overfitting.The objective function that is minimised is defined as</p>
+<p>$ L(\phi ) = \sum_{i}{
+ l(\hat{yi}, yi)} + \sum_{k}{\Omega
+ (f_k)}$</p>
+<p>where $\Omega$ is the regularisation term defined as $\Omega(f) = \gamma T + \frac{1}{2}\lambda \ || w || ^2$ and $l$ is the loss function.</p>
+<p>The XGBoost model is often the best perfoming supervised machine learning model so we expect it to perform better than the random forest model when predicting PM10 concentration for this dataset.</p>
 <p>We chose to use the XGBoost for our second model with the uncleaned dataset because it has been used for similar regression studies in the literature and in one example has been used to predict pollutants in a similar setting [2]. In this study XGBoost was the best performing model when predicting PM2.5 concentration, compared to other regression models such as random forest and support vector regression, with the lowest RMSE and MAE scores.</p>
 <p>To implement this model we used the code from another example of XGBoost regression where the model is used to predict house prices[3].</p>
 </div>
@@ -7552,7 +7557,7 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="Data-Processing">Data Processing<a class="anchor-link" href="#Data-Processing">¶</a></h2><p>As this is the second model using the uncleaned dataset we just need to filter the dataset to europe and select our variables and drop any missing values in our target variable PM10 concentration.</p>
+<h2 id="Data-Processing">Data Processing<a class="anchor-link" href="#Data-Processing">¶</a></h2><p>As this is the second model using the uncleaned dataset we just need to filter the dataset to Europe and select our variables and drop any missing values in our target variable PM10 concentration.</p>
 </div>
 </div>
 </div>

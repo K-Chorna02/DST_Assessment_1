@@ -25,6 +25,7 @@ if(!require("glmnet")) install.packages("glmnet")
 if(!require("kernlab")) install.packages("kernlab")
 if(!require("MASS")) install.packages("MASS")
 if(!require("Metrics")) install.packages("Metrics")
+if(!require("conflicted")) install.packages("conflicted")
 
 # We load the libraries we will need throughout the project:
 library(ggplot2)
@@ -40,6 +41,12 @@ library(glmnet)
 library(kernlab)
 library(MASS)
 library(Metrics)
+
+library(conflicted)
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
+
+
 ```
 
 ```{r loading, include=FALSE}
@@ -303,7 +310,7 @@ cat("R-squared (R²):", round(R2, 3), "\n")
 
 # Calculate MAE
 MAE <- mean(abs(test_data$pm10_concentration - test_data$predicted_pm10), na.rm = TRUE)
-cat("Mean Absolute Error (MAE):", round(MAE, 3), "\n")
+cat("Mean Absolute Error (MAE):", round(MAE,3),"\n")
 ```
 
 -    The value of **2.826** tells us that, on average, the Random Forest's predicted PM10 concentrations differ from the true observed values by about **2.8$\mu g/m^3$**.
@@ -381,7 +388,7 @@ Overall, we can confidently say that the Random Forest proved to be a robust and
 
 
 ## Model: XGboost
-This model can be found in '03 Report_Python', we discuss our findings in the conclusion
+This model can be found in '03 Report_Python', we discuss our findings in the conclusion.
 
 # Modelling without missingness 
 
@@ -429,14 +436,14 @@ The estimated coefficients can be interpreted as follows:
 -   **Intercept**: $\hat{\beta}_0 = 40.91$\
     This represents the expected PM10 concentration for Europe when all other variables are zero. Since this situation is not realistic, the intercept is not of direct interest.
     
--   **year**: $\hat{\beta}_1 = -64.95$ , $\hat{\beta}_2 = -10.31$, we notice both coefficients of year are negative , suggesting a decrease in pm10 concentrations over time. In the linear term, we have that by holding other variables constant, by increasing the year by 1, we expect a decrease of 64.95 per unit of PM10 concentration. As we saw from our EDA, PM10 concentration appeared to have a negative correlation with year, so this supports our negative relationship (which we could interpret as being perhap due to policy changes). This variable is very statistically significant.
+-   **year**: $\hat{\beta}_1 = -64.95$ , $\hat{\beta}_2 = -10.31$, we notice both coefficients of year are negative , suggesting a decrease in pm10 concentrations over time. In the linear term, we have that by holding other variables constant, by increasing the year by 1, we expect a decrease of 64.95 per unit of PM10 concentration. As we saw from our EDA, PM10 concentration appeared to have a negative correlation with year, so this supports our negative relationship (which we could interpret as being perhaps due to policy changes). This variable is very statistically significant.
 The quadratic term still indicated a decline over time, however this was smaller (10.31), suggesting the rate of decline has decreased in more recent years. This variable did not appear to be statistically significant, but still had a very low p-value.
 
 -   **no2_concentration**: $\hat{\beta}_3 =138.5,\hat{\beta}_4 =163.7,\hat{\beta}_5 =216.6$. 
 All of these coefficients were positive and statistically significant, demonstrating a strong non-linear relationship between pollutant concentrations. 
 For the linear term, we see that for every increase by 1 unit of NO2, pm10 is expected to increase by 138.5 units, assuming the other factors remain unchanged. Similarly for the quadratic and cubic terms, we see a large increase in PM10 is expected from every unit increase in NO2 concentrations. This could be due to the fact NO2 and PM10 may have the same pollutant sources (e.g traffic). 
     
--   **population**: $\hat{\beta}_6 =-2.935 \cdot 10^{-8} $. This is negative but contributes to a very small change, we also see a very high p-value suggesting population is not statistically significant in the prediction of pm10 concentration.
+-   **population**: $\hat{\beta}_6 =-2.935 \cdot 10^{-8}$. This is negative but contributes to a very small change, we also see a very high p-value suggesting population is not statistically significant in the prediction of pm10 concentration.
 
 -   **log_population**: $\hat{\beta}_7 =0.385$ \ This is statistically significant to prediction of pm10 concentration. Holding other variables constant, additional increase in the transformed population by 1 unit is associated with an increase of about $0.385$ units in pm10 concentration. This can be interpreted as more densely populated cities tend to have higher levels of PM10 concentrations, which we would expect.
     
@@ -537,7 +544,7 @@ Regarding the R^2 value, we can see the Linear model has the highest value, sugg
 
 Meanwhile the method with the smallest MAE (Mean Absolute Error) is the Elastic Net method. Meaning we can deduce that Elastic Net deviates the least from our true PM10 concentrations.
 
-Since we have chosen to focus on RMSE, we conclude the LASSO method performed the best sa it minimised the prediction error. Most of the differences between our methods are only marginal, but we note different methods perform better with differnt metrics. So one single metric may b=not be representative of all method's performance. 
+Since we have chosen to focus on RMSE, we conclude the LASSO method performed the best as it minimised the prediction error. Most of the differences between our methods are only marginal, but we note different methods perform better with different metrics. So one single metric may b=not be representative of all method's performance. 
 ### Model visualisation:
 
 Now using our model we can use our out of sample data to predict pm10 concentration: 
@@ -577,7 +584,7 @@ Overall our model appears to provide a reasonably good prediction for a variety 
 
 ### Conclusions for Linear regression
 
-To conclude our section on linear regression, we found our initial cross validated linear regression model wasn't very accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using Ridge, LASSO and Elastic net. Although these didn't provide too much improvement (due to the fact there was less multicolinearity between variables than we anticipated), the LASSO method appeared to provide the best results to optimise our linear regresion model. 
+To conclude our section on linear regression, we found our initial cross validated linear regression model wasn't very accurate, only accounting for 41% of our data. To resolve this we regularised our linear regression model by using Ridge, LASSO and Elastic net. Although these didn't provide too much improvement (due to the fact there was less multicolinearity between variables than we anticipated), the LASSO method appeared to provide the best results to optimise our linear regression model. 
 
 We also used transforms of variables, such as log population and polynomial terms for both the no2 concentration and year variables. This helped to capture the non-linearity aspects of our model. However we did find that our model assumptions were violated for the linearity assumption, suggesting further transforms or more explanatory variables should be included to improve our model.
 
@@ -630,7 +637,7 @@ We will continue using the same equation for our model as in the Linear Regressi
 lm_formula_pm10=pm10_concentration ~ poly(year, 2)+poly(no2_concentration,3) +population+log_population+ longitude+latitude+ latitude*longitude
 ```
 
-Applying the robust regression models described above requires the use of the rlm() function from the MASS library, where we can specify the robustness function by choosing $\psi$ as described in @appliedstat. However we have previously used the train() function from the caret library in order to conduct cross validation on the model however this doesnt support the rlm() function needed to conduct robust regression. Consequently we have to perform the cross validation manually. 
+Applying the robust regression models described above requires the use of the rlm() function from the MASS library, where we can specify the robustness function by choosing $\psi$ as described in @appliedstat. However we have previously used the train() function from the caret library in order to conduct cross validation on the model however this doesn't support the rlm() function needed to conduct robust regression. Consequently we have to perform the cross validation manually. 
 
 From @statlearn we define k-fold Cross Validation as $CV_{(k)} = \frac{1}{k} \sum_{i=1}^k \text{MSE}_i$, in K fold cross validation we divide the set of observations into k groups of equal size, the first fold is treated as validation set then the model is fit on the remaining k-1 folds. Mean squared error MSE is computed for each fold and an average of this is computed. In order to find the performance metrics we are using we must compute them from the equations:
 
@@ -640,7 +647,7 @@ $MAE = \frac{1}{n}  \sum_{i=1}^n |y_i-\hat{y}_i|$
 
 $R^2 = 1 - \frac{SS_{res}}{SS_{tot}} = 1- \frac{\sum_{i=1}^n (y_i-\hat{y}_i)^2}{\sum_{i=1}^n (y_i-\bar{y})^2}$
 
-where $y_i$ is the actual value, $\hat{y}_i$ is the predicted value from the model used and $\bar{y}$ is the mean of the actual values. We get get the formula:
+where $y_i$ is the actual value, $\hat{y}_i$ is the predicted value from the model used and $\bar{y}$ is the mean of the actual values. And so from this we create a function to perform cross validation using the rlm() function as our model.
 
 
 ```{r}
@@ -690,7 +697,7 @@ Least median of squares, LMS: $\min_b \text{median} |y_i - x_ib|^2$ this minimis
 
 Least trimmed squares regression, LTS: $\min_b \sum_{i=1}^q |y_i -x_ib|^2_{(i)}$ where $q=(n+p+1)/2$, this minimises the sum of the smallest q squared residuals.
 
-S-estimation: the solution to $\sum_{i=1}^n \chi (\frac{y_i-x_ib}{c_0s}) = (n-p)\beta$ with small scale s, $\chi$ is usually chosen as $\chi (u) = u^6 -3u^4 + 3u^2,  |u| \leq 1$ and $c_0= 1.548$ and $\beta = 0.5$ are chosen for consistency at the normal distribution of errors.
+S-estimation: finds the solution to $\sum_{i=1}^n \chi (\frac{y_i-x_ib}{c_0s}) = (n-p)\beta$ with small scale s, $\chi$ is usually chosen as $\chi (u) = u^6 -3u^4 + 3u^2,  |u| \leq 1$ and $c_0= 1.548$ and $\beta = 0.5$ are chosen for consistency at the normal distribution of errors.
 
 
 Comparing these three models, LMS is the most resistance, LTS is moderately resistant and retains a good efficiency and S-estimator is the least aggressive but is more efficient than LTS and LMS.
@@ -750,14 +757,14 @@ cv_results
 
 
 The RMSE is significantly high for the resistant models particularly LTS, indicating poor performance. In contrast, the robust models performed better especially the huber model. 
-Similarly, for the R² metric, where a higher value indicates better fit, the resistant models all gave negative values showing that they perform worse than the mean. The huber model achieved the highest R². For the resistant models we got negative R^2 which was very surprising for the models to perform that badly that hey perform worse than predicting the mean.
-For MAE, where lower values are preferred, all robust models outperformed the others, with Huber once again performing best. 
+Similarly, for the R^2 metric, where a higher value indicates better fit, the robust models performed better with the huber model achieved the highest R^2. For the resistant models we got negative R^2 which was very surprising for the models to perform that badly that they perform worse than predicting the mean.
+For MAE, where lower values are preferred, all robust models outperformed the others, with tukey performing the best and huber was very close to this. 
 
 So we conclude that the robust models performed much better than the resistant models. In particular, the huber model performed the best and therefore we select the Huber model to predict the PM10 concentrations. 
 
 ### Predicting
 
-We will use the huber model to predict the pm_10 concentration
+Using the huber model to predict the pm_10 concentration we get,
 
 ```{r}
 # Predict PM10 for all observations in the dataset
